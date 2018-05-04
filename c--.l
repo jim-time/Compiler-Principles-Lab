@@ -5,11 +5,7 @@
  *  @date   2018-5-3
  *  @version: v1.1
 **/
-/*
- * @author:jim
- * @date:2018-5-4
- * //#include<stdio.h>
-**/
+
 %option yylineno
 %option noyywrap    
 %{
@@ -17,7 +13,8 @@
     int int_num;
     float float_num;
     char c_comment;
-    void comments();
+    int n_line;
+    /*void comments();*/
 %}
 INT_DEC ([1-9][0-9]*)|[0]
 INT_OCT [0][0-7]+
@@ -82,6 +79,9 @@ ID [_a-zA-Z][_a-zA-z0-9]*
 }
 (0[xX]([0-9a-fA-F]*[g-zG-Z][0-9a-fA-F]*)+) {
     printf("Error type [A] at Line [%d]: Illegal hexadecimal number \'%s\'\n",yylineno,yytext);    
+}
+\n {
+    n_line++;
 }
 {FLOAT} {
     sscanf(yytext,"%f",&float_num);
