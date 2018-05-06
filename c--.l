@@ -10,12 +10,25 @@
 %option noyywrap    
 %{
     #include"stdio.h"
+    #include"stdlib.h"
+    #include"string.h"
+    #include"c--.tab.h" 
     int int_num;
     float float_num;
     char c_comment;
     int n_line;
-    /*void comments();*/
+    
+    int yycolumn = 1;
+    YYLTYPE yylloc;
+    #define YY_USER_ACTION \
+        yylloc.first_line = yylloc.last_line = yylineno; \
+        yylloc.first_column = yycolumn; \
+        yylloc.last_column = yycolumn + yyleng - 1; \
+        yycolumn += yyleng;
+    /*output lex to the scanneroutput.txt*/
+    extern FILE *pscanner;  
 %}
+ID  [_a-zA-Z][_a-zA-Z0-9]*
 INT_DEC ([1-9][0-9]*)|[0]
 INT_OCT [0][0-7]+
 INT_HEX [0][Xx]([0-9a-fA-F]+)
@@ -23,6 +36,7 @@ INT {INT_DEC}|{INT_OCT}|{INT_HEX}
 FLOAT ([0-9]*\.[0-9]+|[0-9]+\.)([eE][+-]?[0-9]+)?[fF]?
 COMMENTS "/*"|(\/\/.*)
 WHITESPACE [ \t]+
+EOL \n
 SEMI ;
 COMMA ,
 ASSIGNOP =
@@ -38,8 +52,8 @@ NOT !
 TYPE int|float
 LP \(
 RP \)
-LB \[
-RB \]
+LB "["
+RB "]"
 LC \{
 RC \}
 STRUCT struct
@@ -47,45 +61,54 @@ RETURN return
 IF if
 ELSE else
 WHILE while
-ID [_a-zA-Z][_a-zA-z0-9]*
 %%
-{WHITESPACE} {
-}
-{TYPE} {
-    printf("TYPE: %s\n",yytext);
-}
-{MINUS} {
-    printf("MINUS\n");
-}
-{INT} {
-    if(yytext[0] == '0'){   
-        if(yyleng > 1){
-            if(yytext[1] == 'x' || yytext[1] == 'X'){   /*recognize the hexadecimal format*/
-                sscanf(yytext+2,"%x",&int_num);
-                printf("INT: %d\n",int_num);
-            }else {     /*recognize the octal format*/
-                sscanf(yytext+1,"%o",&int_num);
-                printf("INT: %d\n",int_num);
-            }
-        }else
-            /*recognize the zero*/
-             printf("INT: %d\n",atoi(yytext));   
-    }else
-        /*recognize the decimal format*/
-        printf("INT: %d\n",atoi(yytext));  
-}
 (0([0-7]*[89][0-7]*)+) {
     printf("Error type [A] at Line [%d]: Illegal octal number \'%s\'\n",yylineno,yytext);
 }
 (0[xX]([0-9a-fA-F]*[g-zG-Z][0-9a-fA-F]*)+) {
     printf("Error type [A] at Line [%d]: Illegal hexadecimal number \'%s\'\n",yylineno,yytext);    
 }
+((\.([eE][+-]?[0-9]*[fF]?))|(([0-9]*\.?[0-9]+|[0-9]+\.)[eE][+-]?[fF]?)) {
+    printf("Error type [A] at Line [%d]: Illegal floating point number \'%s\'\n",yylineno,yytext);    
+}
+{WHITESPACE} {
+}
+{TYPE} {
+    fprintf(pscanner,"TYPE: %s\n",yytext);
+    return TYPE;
+}
+{MINUS} {
+    fprintf(pscanner,"MINUS\n");
+    return MINUS;
+}
+{INT} {
+    if(yytext[0] == '0'){   
+        if(yyleng > 1){
+            if(yytext[1] == 'x' || yytext[1] == 'X'){   /*recognize the hexadecimal format*/
+                sscanf(yytext+2,"%x",&int_num);
+                fprintf(pscanner,"INT: %d\n",int_num);
+            }else {     /*recognize the octal format*/
+                sscanf(yytext+1,"%o",&int_num);
+                fprintf(pscanner,"INT: %d\n",int_num);
+            }
+        }else
+            /*recognize the zero*/
+             fprintf(pscanner,"INT: %d\n",atoi(yytext));   
+    }else
+        /*recognize the decimal format*/
+        fprintf(pscanner,"INT: %d\n",atoi(yytext));  
+    yylval.type_int = int_num;
+    return INT;
+}
 \n {
     n_line++;
+    yycolumn = 1;
 }
 {FLOAT} {
     sscanf(yytext,"%f",&float_num);
-    printf("FLOAT: %.6f\n",float_num);
+    fprintf(pscanner,"FLOAT: %.6f\n",float_num);
+    yylval.type_float = float_num;
+    return FLOAT;
 }
 {COMMENTS} {
     if(yytext[0] == '/' && yytext[1] == '*'){
@@ -103,81 +126,105 @@ ID [_a-zA-Z][_a-zA-z0-9]*
         printf("COMMENTS @line [%d]\n",yylineno);
 }
 {SEMI} {
-    printf("SEMI\n");
+    fprintf(pscanner,"SEMI\n");
+    return SEMI;
 }
 {COMMA} {
-    printf("COMMA\n");
+    fprintf(pscanner,"COMMA\n");
+    return COMMA;
 }
 {ASSIGNOP} {
-    printf("ASSIGNOP\n");
+    fprintf(pscanner,"ASSIGNOP\n");
+    return ASSIGNOP;
 }
 {RELOP} {
-    printf("RELOP: %s\n",yytext);
+    fprintf(pscanner,"RELOP\n");
+    return RELOP;
 }
 {PLUS} {
-    printf("PLUS\n");
+    fprintf(pscanner,"PLUS\n");
+    return PLUS;
 }
 {STAR} {
-    printf("STAR\n");
+    fprintf(pscanner,"STAR\n");
+    return STAR;
 }
 {DIV} {
-    printf("DIV\n");
+    fprintf(pscanner,"DIV\n");
+    return DIV;
 }
 {AND} {
-    printf("AND\n");
+    fprintf(pscanner,"AND\n");
+    return AND;
 }
 {OR} {
-    printf("OR\n");
+    fprintf(pscanner,"OR\n");
+    return OR;
 }
 {DOT} {
-    printf("DOT\n");
+    fprintf(pscanner,"DOT\n");
+    return DOT;
 }
 {NOT} {
-    printf("NOT\n");
+    fprintf(pscanner,"NOT\n");
+    return NOT;
 }
 {LP} {
-    printf("LP\n");
+    fprintf(pscanner,"LP\n");
+    return LP;
 }
 {RP} {
-    printf("RP\n");
+    fprintf(pscanner,"RP\n");
+    return RP;
 }
 {LB} {
-    printf("LB\n");
+    fprintf(pscanner,"LB\n");
+    return LB;
 }
 {RB} {
-    printf("RB\n");
+    fprintf(pscanner,"RB\n");
+    return RB;
 }
 {LC} {
-    printf("LC\n");
+    fprintf(pscanner,"LC\n");
+    return LC;
 }
 {RC} {
-    printf("RC\n");
+    fprintf(pscanner,"RC\n");
+    return RC;
 }
 {STRUCT} {
-    printf("STRUCT\n");
+    fprintf(pscanner,"STRUCT\n");
+    return STRUCT;
 }
 {RETURN} {
-    printf("RETURN\n");
+    fprintf(pscanner,"RETURN\n");
+    return RETURN;
 }
 {IF} {
-    printf("IF\n");
+    fprintf(pscanner,"IF\n");
+    return IF;
 }
 {ELSE} {
-    printf("ELSE\n");
+    fprintf(pscanner,"ELSE\n");
+    return ELSE;
 }
 {WHILE} {
-    printf("WHILE\n");
+    fprintf(pscanner,"WHILE\n");
+    return WHILE;
 }
 {ID} {
-    printf("ID: %s\n",yytext);
+    fprintf(pscanner,"ID: %s\n",yytext);
+    yylval.type_string = (char*)malloc(strlen(yytext)+1);
+    strcpy(yylval.type_string,yytext);
+    return ID;
 }
 .   {
-    printf("Error type [A] at Line [%d]:Mysterious characters\"%s\"\n",yylineno,yytext);
+    printf("Error type [A] at Line [%d]: Mysterious characters \'%s\'\n",yylineno,yytext);
 }
 %%
 void comments(){
     char c;
-    input();
     input();
     while((c = input())!=0){
         if(c == '*'){
