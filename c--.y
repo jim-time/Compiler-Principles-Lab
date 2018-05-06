@@ -12,6 +12,7 @@
     extern int yylineno;
 
     int yyerror(const char* msg);
+    int print_error(const char* msg);
     int print_syntax(char* syntax);
 %}
 %code requires {
@@ -69,17 +70,16 @@ ExtDefList : ExtDef ExtDefList
 ExtDef : Specifier ExtDecList SEMI
     | Specifier SEMI
     | Specifier FunDec CompSt
-    | Specifier ExtDecList error    /*uncertain 0*/
     ;
 ExtDecList : VarDec
-    | VarDec COMMA ExtDecList
+    | VarDec COMMA ExtDecList       
     ;
 Specifier : TYPE
     | StructSpecifier
     ;
 StructSpecifier : STRUCT OptTag LC DefList RC
     | STRUCT Tag
-    | STRUCT OptTag LC DefList error    /*uncertain 1*/
+    | STRUCT OptTag LC error RC   /*uncertain 1*/
     ;
 OptTag : ID
     | /* empty */
@@ -88,10 +88,11 @@ Tag : ID
     ;
 VarDec : ID
     | VarDec LB INT RB
-    | VarDec LB error RB
+    | VarDec LB error RB          
     ;
 FunDec : ID LP VarList RP
     | ID LP RP
+    | ID LP error RP     /*uncertain*/
     ;
 VarList : ParamDec COMMA VarList
     | ParamDec
@@ -99,31 +100,32 @@ VarList : ParamDec COMMA VarList
 ParamDec : Specifier VarDec
     ;
 CompSt : LC DefList StmtList RC
-    | LC DefList StmtList error
+    | LC DefList error RC   {print_error("Missing \"}\"");}
     ;
 StmtList : Stmt StmtList
     | /* empty */
     ;
-Stmt : Exp SEMI
+Stmt : Exp SEMI     //{printf("%s\n",$1);}
     | CompSt
     | RETURN Exp SEMI
     | IF LP Exp RP Stmt %prec LOWER_THAN_ELSE
     | IF LP Exp RP Stmt ELSE Stmt
     | WHILE LP Exp RP Stmt
-    | error SEMI
+    | error SEMI       {print_error("Missing \";\"");}
     ;
 
 DefList : Def DefList
     | /* empty */
     ;
 Def : Specifier DecList SEMI
-    | Specifier error SEMI          /*uncertain*/
+    | Specifier error SEMI {print_error("Missing \";\"");} 
     ;
 DecList : Dec
-    | Dec COMMA DecList
+    | Dec COMMA DecList                 /*?*/
     ;
 Dec : VarDec
     | VarDec ASSIGNOP Exp
+    | VarDec error Exp          /*uncertain*/
     ;
 Exp : Exp ASSIGNOP Exp
     | Exp AND Exp
@@ -143,7 +145,8 @@ Exp : Exp ASSIGNOP Exp
     | ID
     | INT
     | FLOAT
-    | error RP
+    | LP error RP      
+    | Exp LB error RB   {print_error("Missing \"]\"");}
     ;
 Args : Exp COMMA Args
     | Exp
@@ -154,6 +157,10 @@ int yyerror(const char* msg)
     printf("Error type [B] at Line [%d]: %s\n", yylineno,msg);
     return 0;
  }
+int print_error(const char* msg){
+    //printf("Error type [B] at Line [%d]: %s\n", yylineno,msg);
+    return 0;    
+}
 int print_syntax(char* syntax){
     printf("%s (%d)\n",syntax,yylineno);
     return 0;
