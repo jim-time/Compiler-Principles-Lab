@@ -47,7 +47,6 @@
 %token <type_node>RETURN
 %token <type_node>IF ELSE WHILE
 %token <type_node>ID
-%token <type_node>COMMENTS
 /* declared non-terminals */
 %type <type_node> Program ExtDefList ExtDef ExtDecList Specifier StructSpecifier OptTag Tag VarDec FunDec VarList ParamDec CompSt StmtList Stmt DefList Def DecList Dec Exp Args
 /*declared priority*/
@@ -146,7 +145,7 @@ Exp : Exp ASSIGNOP Exp              {$$ = CreateNode(NULL,"Exp",node_data,0);Ins
     | INT                           {$$ = CreateNode(NULL,"Exp",node_data,0);InsertNode($$,$1);}
     | FLOAT                         {$$ = CreateNode(NULL,"Exp",node_data,0);InsertNode($$,$1);}
     | LP error RP          /*error */
-    | Exp LB error RB      /*error */ {yyerror("Missing \"]\"");}
+    | Exp LB error RB      /*error */ //{yyerror("Missing \"]\"");}
     ;
 Args : Exp COMMA Args               {$$ = CreateNode(NULL,"Args",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}
     | Exp                           {$$ = CreateNode(NULL,"Args",node_data,0);InsertNode($$,$1);}

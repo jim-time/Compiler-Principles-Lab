@@ -19,9 +19,15 @@
     int int_num;
     float float_num;
     union Node_Data node_data;
-    char c_comment;
     int n_line;
-    
+    /*multiline comment*/
+    #define NORMAL 0
+    #define FOUND_SOC 1
+    char c_comment;
+    int comment_state = NORMAL;
+    int quit_while = 0;
+
+    /*yy's variable*/
     int yycolumn = 1;
     YYLTYPE yylloc;
     #define YY_USER_ACTION \
@@ -39,7 +45,8 @@ INT_OCT [0][0-7]+
 INT_HEX [0][Xx]([0-9a-fA-F]+)
 INT {INT_DEC}|{INT_OCT}|{INT_HEX}
 FLOAT ([0-9]*\.[0-9]+|[0-9]+\.)([eE][+-]?[0-9]+)?[fF]?
-COMMENTS "/*"
+START_COMMENTS "/*"
+END_COMMENTS "*/"
 SINGLE_COMMENTS (\/\/.*)
 SPACE [ \t]+
 EOL \n
@@ -140,21 +147,60 @@ WHILE while
         fprintf(pscanner,"SINGLE_COMMENTS @line [%d]\n",yylineno);
 #endif 
 }
-{COMMENTS} {
+{START_COMMENTS} {
     if(yytext[0] == '/' && yytext[1] == '*'){
         while((c_comment = input())!=0){
-            if(c_comment == '*'){
-                c_comment = input();
-                if(c_comment == '/'){
-                    #if SCANNER_OUTPUT
-                    fprintf(pscanner,"End of comments @ line [%d]\n",yylineno);
-                    #endif 
+            switch(comment_state){
+                case NORMAL:
+                    if(c_comment == '*'){
+                        c_comment = input();
+                        if(c_comment == '/'){
+                            #if SCANNER_OUTPUT
+                            fprintf(pscanner,"End of comments @ line [%d]\n",yylineno);
+                            #endif 
+                            quit_while = 1;
+                        }else
+                        unput(c_comment);
+                    }else if(c_comment == '/'){
+                        c_comment = input();
+                        if(c_comment == '*'){
+                            comment_state = FOUND_SOC;
+                        }else
+                            unput(c_comment);
+                    }
                     break;
-                }else
-                    unput(c_comment);
+                case FOUND_SOC:
+                    if(c_comment == '*'){
+                        c_comment = input();
+                        if(c_comment == '/'){
+                            #if SCANNER_OUTPUT
+                            fprintf(pscanner,"End of cmments @ line [%d]\n",yylineno);
+                            #endif 
+                            quit_while = 1;
+                        }else{
+                            unput(c_comment);
+                        }
+                    }
+                    break;
             }
+            if(quit_while){
+                quit_while = 0;
+                break;
+            } 
         }
     }
+}
+{END_COMMENTS} {
+    switch(comment_state){
+        case NORMAL:
+            printf("Error type [B] at Line [%d]: Missing \'/*'\n",yylineno);
+            break;
+        case FOUND_SOC:
+            printf("Error type [B] at Line [%d]: Syntax error, unexpected nested comment\n",yylineno);
+            comment_state = NORMAL;
+            break;
+    }
+    error_hint = 1;
 }
 {SEMI} {
 #if SCANNER_OUTPUT
@@ -347,16 +393,3 @@ WHILE while
     error_hint = 1;
 }
 %%
-void comments(){
-    char c;
-    input();
-    while((c = input())!=0){
-        if(c == '*'){
-            if((c = input())=='/'){
-                printf("End of comments @ line [%d]\n",yylineno);
-                break;
-            }else
-                unput(c);
-        }
-    }
-}

@@ -81,6 +81,6 @@ void PreOrderTraverse(struct SyntaxTreeNode* node,int level){
             printf("%s (%d)\n",node->node_name,node->lineno);
     }
     for(cnt_child = 0; cnt_child < node->n_children;cnt_child++){
-        PreOrderTraverse(node->children[cnt_child],level+1);
+        PreOrderTraverse(node->children[cnt_child],level+2);
     }
 }
