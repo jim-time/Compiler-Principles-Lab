@@ -15,12 +15,13 @@ union Node_Data{
 struct SyntaxTreeNode{
     char* node_name;
     union Node_Data data;
+    int lineno;
     struct SyntaxTreeNode* parent;
     struct SyntaxTreeNode* children[MAX_CHILDREN];
     int n_children;
+    /*to update the height of tree*/
     int height;
-    int lineno;
-    int isToken;
+    int max_h_child;
 };
 
 struct SyntaxTreeNode* CreateNode(struct SyntaxTreeNode* parent,char* name,union Node_Data data,int line);

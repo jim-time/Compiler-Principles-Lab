@@ -1,3 +1,10 @@
+/*
+ *  @file   SyntaxTree.c
+ *  @brief  To create a syntax tree
+ *  @author jim
+ *  @date   2018-5-6
+ *  @version v1.0
+**/
 #include "SyntaxTree.h"
 struct SyntaxTreeNode* CreateNode(struct SyntaxTreeNode* parent,char* name,union Node_Data data,int line){
     struct SyntaxTreeNode* child = (struct SyntaxTreeNode*)malloc(sizeof(struct SyntaxTreeNode));
@@ -5,15 +12,17 @@ struct SyntaxTreeNode* CreateNode(struct SyntaxTreeNode* parent,char* name,union
         printf("Fail to create a tree node!\n");
         return 0;
     }
-
+    /*Initialize the inheritance relationships*/
     child->parent = parent;
     child->n_children = 0;
     memset(child->children,0,MAX_CHILDREN);
-
+    /*Initialize the attribute */
     child->node_name = name;
     child->data = data;
     child->lineno = line;
+    /*Initialize the height of node*/
     child->height = 0;
+    child->max_h_child = 0;
     return child;
 }
 struct SyntaxTreeNode* InsertNode(struct SyntaxTreeNode* parent,struct SyntaxTreeNode* child){
@@ -32,7 +41,10 @@ struct SyntaxTreeNode* InsertNode(struct SyntaxTreeNode* parent,struct SyntaxTre
         }else   
             parent->lineno = child->lineno;
         /*update the height*/        
-        /*update the child node*/
+        if(parent->max_h_child < child->height)
+            parent->max_h_child = child->height;
+        parent->height = parent->max_h_child + 1;
+        /*update the parent*/
         child->parent = parent;
     }
     return child;

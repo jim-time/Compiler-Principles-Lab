@@ -39,7 +39,8 @@ INT_OCT [0][0-7]+
 INT_HEX [0][Xx]([0-9a-fA-F]+)
 INT {INT_DEC}|{INT_OCT}|{INT_HEX}
 FLOAT ([0-9]*\.[0-9]+|[0-9]+\.)([eE][+-]?[0-9]+)?[fF]?
-COMMENTS "/*"|(\/\/.*)
+COMMENTS "/*"
+SINGLE_COMMENTS (\/\/.*)
 SPACE [ \t]+
 EOL \n
 SEMI ;
@@ -134,6 +135,11 @@ WHILE while
     yylval.type_node = CreateNode(NULL,"FLOAT",node_data,yylineno);
     return FLOAT;
 }
+{SINGLE_COMMENTS} {
+#if SCANNER_OUTPUT
+        fprintf(pscanner,"SINGLE_COMMENTS @line [%d]\n",yylineno);
+#endif 
+}
 {COMMENTS} {
     if(yytext[0] == '/' && yytext[1] == '*'){
         while((c_comment = input())!=0){
@@ -148,10 +154,7 @@ WHILE while
                     unput(c_comment);
             }
         }
-    }else
-    #if SCANNER_OUTPUT
-        fprintf(pscanner,"COMMENTS @line [%d]\n",yylineno);
-    #endif 
+    }
 }
 {SEMI} {
 #if SCANNER_OUTPUT
