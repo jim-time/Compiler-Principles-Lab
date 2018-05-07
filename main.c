@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
         }
         yydebug = 0;
     }
-    pscanner = fopen("scanneroutput.txt","r+");
+    pscanner = fopen("scanneroutput.txt","w+");
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0)
