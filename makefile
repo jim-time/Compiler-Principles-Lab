@@ -6,6 +6,7 @@ SyntaxTree.o: SyntaxTree.c SyntaxTree.h
 	cc -o SyntaxTree.o SyntaxTree.c
 lex.yy.c : c--.tab.h c--.l
 	flex c--.l
+c--.tab.h :
 c--.tab.c : c--.y 
 	bison -d -v -t c--.y
 
