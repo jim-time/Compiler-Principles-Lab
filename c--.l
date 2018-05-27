@@ -193,7 +193,7 @@ WHILE while
 {END_COMMENTS} {
     switch(comment_state){
         case NORMAL:
-            printf("Error type [B] at Line [%d]: Missing \'/*'\n",yylineno);
+            printf("Error type [B] at Line [%d]: Missing '/*'\n",yylineno);
             break;
         case FOUND_SOC:
             printf("Error type [B] at Line [%d]: Syntax error, unexpected nested comment\n",yylineno);

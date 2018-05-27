@@ -1,0 +1,29 @@
+#ifndef _ERRTYPE_H_
+#define _ERRTYPE_H_
+
+#define UNDEFINED_VAR 0
+#define UNDEFINED_FIELD 13
+#define UNDEFINED_STRUCT 16
+#define UNDEFINED_FUNC 1
+
+#define REDEFINED_VAR 2
+#define REDEFINED_FIELD 14
+#define REDEFINED_STRUCT 15
+#define REDEFINED_FUNC 3
+
+#define MISMATCHED_ASSIGNMENT 4
+#define MISMATCHED_OPERAND 6
+#define MISMATCHED_RETURN 7
+#define ERR_LEFT_VAL 5
+#define ERR_FUNC_ARGS 8
+
+#define NOT_ARRAY 9
+#define NOT_FUNC 10
+#define NOT_INT 11
+#define NOT_MEMBER 12
+
+#define INCOMPLETE_DEF_FUNC 17
+
+
+
+#endif

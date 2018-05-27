@@ -1,4 +1,4 @@
-/**bison -d syntax.y
+/**bison -d syntax.y    bison -d -v -t c--.y
  *  @file   c--.y
  *  @brief  
  *  @author jim
@@ -68,6 +68,7 @@ ExtDefList : ExtDef ExtDefList      {$$ = CreateNode(NULL,"ExtDefList",node_data
     ;
 ExtDef : Specifier ExtDecList SEMI  {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}
     | Specifier SEMI                {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);}
+    | Specifier FunDec SEMI         {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}
     | Specifier FunDec CompSt       {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}
     ;
 ExtDecList : VarDec                 {$$ = CreateNode(NULL,"ExtDecList",node_data,0);InsertNode($$,$1);}
