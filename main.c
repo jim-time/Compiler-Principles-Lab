@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "SyntaxTree.h"
+#include "SymbolTable.h"
+#include "TypeCheck.h"
+
 extern FILE *yyin;
 extern int yylex (void);
 extern void yyrestart(FILE * input_file );
@@ -19,6 +22,10 @@ FILE *pscanner;
 struct SyntaxTreeNode* root;
 int error_hint = 0;
 int main(int argc, char** argv) {
+    //create a type table & symbol table
+    tt_create();
+    vartab_stack_create();
+
     FILE *pfile;
     if (argc > 1) {
         if(argc == 2){  /*Normal Mode*/
@@ -42,7 +49,7 @@ int main(int argc, char** argv) {
     yyparse();
     if(error_hint == 0)
         PreOrderTraverse(root,0);
-    //while(yylex());
+    print_functable();
     fclose(pscanner);
     return 0;
 }

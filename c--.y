@@ -9,6 +9,7 @@
     #define YYERROR_VERBOSE
     #include "stdio.h"
     #include "SyntaxTree.h"
+    #include "SymbolTable.h"
     extern int yylex (void);
     extern int yylineno;
     extern struct SyntaxTreeNode* root;
@@ -64,11 +65,11 @@
 Program : ExtDefList                {root = CreateNode(NULL,"Program",node_data,0);InsertNode(root,$1);/*PreOrderTraverse($$,0);*/}
     ;
 ExtDefList : ExtDef ExtDefList      {$$ = CreateNode(NULL,"ExtDefList",node_data,0);InsertNode($$,$1);InsertNode($$,$2);}
-    | /* empty */                   {$$ = NULL;}
+    | /* empty */                   {$$ = CreateNode(NULL,"ExtDefList",node_data,0);}
     ;
 ExtDef : Specifier ExtDecList SEMI  {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}
     | Specifier SEMI                {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);}
-    | Specifier FunDec SEMI         {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}
+    | Specifier FunDec SEMI         {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3); }
     | Specifier FunDec CompSt       {$$ = CreateNode(NULL,"ExtDef",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}
     ;
 ExtDecList : VarDec                 {$$ = CreateNode(NULL,"ExtDecList",node_data,0);InsertNode($$,$1);}
@@ -82,7 +83,7 @@ StructSpecifier : STRUCT OptTag LC DefList RC   {$$ = CreateNode(NULL,"StructSpe
     | STRUCT OptTag LC error RC   /*error 1*/   
     ;
 OptTag : ID                         {$$ = CreateNode(NULL,"OptTag",node_data,0);InsertNode($$,$1);}
-    | /* empty */                   {$$ = NULL;}
+    | /* empty */                   {$$ = CreateNode(NULL,"OptTag",node_data,0);}
     ;
 Tag : ID                            {$$ = CreateNode(NULL,"Tag",node_data,0);InsertNode($$,$1);}
     ;
@@ -103,7 +104,7 @@ CompSt : LC DefList StmtList RC     {$$ = CreateNode(NULL,"CompSt",node_data,0);
     | LC DefList error RC   /*error */
     ;
 StmtList : Stmt StmtList            {$$ = CreateNode(NULL,"StmtList",node_data,0);InsertNode($$,$1);InsertNode($$,$2);}  
-    | /* empty */                   {$$ = NULL;}
+    | /* empty */                   {$$ = CreateNode(NULL,"StmtList",node_data,0);}
     ;
 Stmt : Exp SEMI                     {$$ = CreateNode(NULL,"Stmt",node_data,0);InsertNode($$,$1);InsertNode($$,$2);}  
     | CompSt                        {$$ = CreateNode(NULL,"Stmt",node_data,0);InsertNode($$,$1);}  
@@ -115,7 +116,7 @@ Stmt : Exp SEMI                     {$$ = CreateNode(NULL,"Stmt",node_data,0);In
     ;
 
 DefList : Def DefList               {$$ = CreateNode(NULL,"DefList",node_data,0);InsertNode($$,$1);InsertNode($$,$2);}  
-    | /* empty */                   {$$ = NULL;}
+    | /* empty */                   {$$ = CreateNode(NULL,"DefList",node_data,0);}
     ;
 Def : Specifier DecList SEMI        {$$ = CreateNode(NULL,"Def",node_data,0);InsertNode($$,$1);InsertNode($$,$2);InsertNode($$,$3);}  
     | Specifier error SEMI   /*error */ {print_error("Missing \";\"");} 
