@@ -1,6 +1,10 @@
 #ifndef __TYPECHECK_H_
 #define __TYPECHECK_H_
 #include "uthash/include/uthash.h"
+
+#define TYPE_DECLARED 0x1
+#define TYPE_DEFINED  0x2 
+
 typedef struct TypeItem_t TypeTable_t;
 struct FieldList;
 
@@ -10,7 +14,7 @@ typedef struct FieldList* FieldListPtr;
 
 #define BASIC_INT 1
 #define BASIC_FLOAT 2
-
+#define TYPE_NAME_LEN 48
 struct TypeItem_t
 {
     enum { BASIC, ARRAY, STRUCTURE } kind;
@@ -33,8 +37,14 @@ struct FieldList
 {
     char* name; // 域的名字
     TypePtr type; // 域的类型
-    FieldListPtr tail; // 下一个域
+    int lineno;
+    FieldListPtr tail; // 下一个Def域
 };
+
+
+//is Equal
+int isTypeEqual(TypePtr ta, TypePtr tb);
+int isFieldEqual(FieldListPtr fla,FieldListPtr flb);
 
 //hash table
 extern struct TypeItem_t *types;
@@ -52,9 +62,13 @@ int tt_pop_bucket();
 int tt_push_type(int bucket_index, TypePtr type);
 int tt_pop_type(int bucket_index);
 
-int add_type(int level, TypePtr type, int lineno);
+TypePtr add_type(int level, TypePtr type, int lineno);
 int add_global_type(TypePtr type);
-int isTypeEqual(TypePtr ta, TypePtr tb);
-int find_type(TypePtr type, TypePtr ret_type);
+int find_type(TypePtr type, TypePtr* ret_type);
 
+//print info
+int print_type(TypePtr type, int level);
+int print_field(FieldListPtr field, int level);
+
+int print_typetable();
 #endif

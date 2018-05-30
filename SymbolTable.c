@@ -50,7 +50,7 @@ int vartab_stack_pop(){
     struct VarTable_t* bucket, *discard;
     VarTableStack.pop(&VarTableStack,&bucket);
     while(bucket->next){
-        vartab_list_pop(bucket);
+        vartab_list_pop(&bucket);
     }
     return 1;
 }
@@ -60,20 +60,20 @@ int vartab_isEqual(struct VarTable_t** a, struct VarTable_t** b){
     return 1;
 }
 
-int vartab_list_push(struct VarTable_t* start, struct VarTable_t* var){
-    var->next = start;
-    start = var;
+int vartab_list_push(struct VarTable_t** start, struct VarTable_t** var){
+    (*var)->next = *start;
+    *start = *var;
     return 1;
 }
 
-int vartab_list_pop(struct VarTable_t* start){
+int vartab_list_pop(struct VarTable_t** start){
     if(!start){
         printf("start is null\n");
         return 0;
     }
 
-    struct VarTable_t* old = start;
-    start = start->next;
+    struct VarTable_t* old = *start;
+    *start = (*start)->next;
     free(old);
     return 1;
 }
@@ -83,18 +83,59 @@ int vartab_list_pop(struct VarTable_t* start){
  *function table
  * 
 **/ 
+
+int isFuncEqual(struct FuncTable_t* fa, struct FuncTable_t* fb){
+    if(fa->n_param == fb->n_param){
+        if(isTypeEqual(fa->ret_type,fb->ret_type)){
+            if(isFieldEqual(fa->param_list,fb->param_list))
+                return 1;
+        }
+    }
+    return 0;
+}
+
 int add_func(struct FuncTable_t* entry, int lineno){
     struct FuncTable_t* func;
     HASH_FIND_STR(functions,entry->name,func);
-    if(func && func->define == 1){
-        printf("Error type %d at line %d: Redefined function \"%s\"\n",REDEFINED_FUNC,lineno,entry->name);
-        return 0;
+    if(func){
+        if(func->define & FUNC_DECLARED){
+           if(entry->define & FUNC_DEFINED){
+               if(!isFuncEqual(func,entry)){
+                   printf("Error type [%d] at line [%d]: Confilcting types for \"%s\"\n",CONFLIT_FUNC,lineno,entry->name);
+                   //return func;
+                   return 0;
+               }
+               entry->define |=FUNC_DECLARED;
+               entry->hh = func->hh;
+               memmove(func,entry,sizeof(struct FuncTable_t));
+               //return func;
+               return 1;
+           }else if(entry->define & FUNC_DECLARED){
+                printf("Error type [%d] at line [%d]: Redefined function \"%s\"\n",REDEFINED_FUNC,lineno,entry->name);
+                //return func;
+                return 0;
+           }
+        }else if(func->define & FUNC_DEFINED){
+            if(entry->define & FUNC_DECLARED){          // defined a func and then use it
+                if(!isFuncEqual(func,entry)){
+                    printf("Error type [%d] at line [%d]: Confilcting types for \"%s\"\n",CONFLIT_FUNC,lineno,entry->name);
+                    //return func;
+                    return 0;
+                }
+                func->define |=FUNC_DECLARED;
+                //return func;
+                return 1;
+            }else if(entry->define & FUNC_DEFINED){
+                printf("Error type [%d] at line [%d]: Redefined function \"%s\"\n",REDEFINED_FUNC,lineno,entry->name);
+                //return func;
+                return 1;
+            }
+        }
     }
     //add a new func
     if(!func)
         HASH_ADD_KEYPTR(hh,functions,entry->name,strlen(entry->name),entry);
-    else if(func->define == 0)
-        func->define = 1;
+    //return entry;
     return 1;
 }
 
@@ -105,10 +146,30 @@ int find_func(char* name, struct FuncTable_t* entry){
 
 void print_functable() {
     struct FuncTable_t* func;
-    printf("\n%-15s%-15s%-15s\n","Name", "Ret","Param");
+    FieldListPtr para_ptr;
+    printf("\n%-24s%-24s%-24s\n","RetType", "Name","Param");
     for(func = functions; func != NULL; func = (struct FuncTable_t*)(func->hh.next)) {
-        printf("%-15s%-15d\n", func->name, func->ret_type->kind);
+        if(func->ret_type->name){
+            printf("%-24s",func->ret_type->name);
+        }
+        if(func->name){
+            printf("%-24s",func->name);
+        }
+        printf("(");
+        for(para_ptr = func->param_list;para_ptr;para_ptr = para_ptr->tail){
+            if(para_ptr->type->name){
+                printf("%s ",para_ptr->type->name);
+            }
+            if(para_ptr->name){
+                if(para_ptr->tail)
+                    printf("%s,",para_ptr->name);
+                else
+                    printf("%s",para_ptr->name);
+            }
+        }
+        printf(")\n");
     }
+    return;
 }
 
 /**variable table
@@ -119,7 +180,7 @@ int add_var(int level, TypePtr type, char* name, int lineno){
     struct VarTable_t* entry;
     HASH_FIND_STR(vars,name,entry);
     if(entry && (entry->level == level)){
-        printf("Error type %d at line %d: Redefined variable \"%s\"\n",REDEFINED_VAR,lineno,name);
+        printf("Error type [%d] at line [%d]: Redefined variable \"%s\"\n",REDEFINED_VAR,lineno,name);
         return 0;
     }
 
@@ -127,10 +188,10 @@ int add_var(int level, TypePtr type, char* name, int lineno){
     entry = (struct VarTable_t*)malloc(sizeof(struct VarTable_t));
     entry->type = type;
     entry->level = level;
-    strcpy(entry->name,name);
+    entry->name = name;
     HASH_ADD_KEYPTR(hh,vars,entry->name,strlen(entry->name),entry);
 
-    vartab_list_push(VarTableStack.elem[VarTableStack.size-1],entry);
+    vartab_list_push(&VarTableStack.elem[VarTableStack.size-1],&entry);
     return 1;
 }
 
@@ -160,82 +221,17 @@ int clear_local_var(){
 
 void print_vartable(){
     struct VarTable_t* var;
-    printf("\n%-15s%-15s%-15s\n","Type", "Name","Level");
-    for(var = vars; var != NULL; var = (struct VarTable_t*)(var->hh.next)) {
-        printf("%-15d%-15s\n", var->type->kind, var->name);
-    }
-}
-
-/*Syntax tree analize
- *
- * 
- *
-**/  
-int FuncDec(struct SyntaxTreeNode* specifier,struct SyntaxTreeNode* dec){
-    int a;
-    
-    return 1;
-}
-
-int ST_ExtVarDec(struct SyntaxTreeNode* Specifier, struct SyntaxTreeNode* ExtDecList, TypePtr ret){
-    TypePtr type = (TypePtr)malloc(sizeof(struct TypeItem_t));
-    struct SyntaxTreeNode* st_iter;
-    if(ExtDecList == NULL){                                 // ExtDef -> Specifier SEMI
-        
-    }else{                                                  // ExtDef -> Specifier ExtDecList SEMI
-
-    }
-    if(!strcmp(Specifier->children[0]->node_name,"TYPE")){   //int | float
-        type->kind = BASIC;
-        if(!strcmp(Specifier->data.string_value,"int")){ //int
-            type->name = "int";
-            type->info.basic = BASIC_INT;
-        }else{
-            type->name = "float";
-            type->info.basic = BASIC_FLOAT;
+    printf("\n%-24s%-24s%s\n","Type", "Name","Level");
+    for(var = VarTableStack.elem[VarTableStack.size-1];var->next;var = var->next){
+        if(var->type->name){
+            printf("%-24s",var->type->name);
         }
-    }else{ //StructSpecifier
-        //st_iter->n_children;
-    }
-
-    return 1;
-}
-
-int ST_Specifier(struct SyntaxTreeNode* Specifier,int hierarchy,TypePtr ret){
-    TypePtr type;
-    struct SyntaxTreeNode* st_iter = Specifier;
-    st_iter = st_iter->children[0];                     // Specifier -> TYPE | StructSpecifier
-    if(!strcmp(st_iter->node_name,"TYPE")){             // Specifier -> TYPE , st_iter = TYPE
-        type = (TypePtr)malloc(sizeof(struct TypeItem_t));
-        strcpy(type->name,st_iter->data.string_value);
-        find_type(type,ret);
-        free(type);
-        return 1;
-    }else{                                               // Specifier -> StructSpecifier , st_iter = StructSpecifier
-        if(st_iter->n_children == 2){                    // StructSpecifier -> STRUCT Tag , declare a structure
-            st_iter = st_iter->children[1];              // st_iter = Tag -> ID
-            st_iter = st_iter->children[0];              // st_iter = ID
-            type = (TypePtr)malloc(sizeof(struct TypeItem_t));
-            type->kind = STRUCTURE;
-            sprintf(type->name,"struct%s",st_iter->data.string_value);
-            type->info.structure.define = 0;
-            type->info.structure.elem = NULL;
-            type->level = hierarchy;
-            //TypePtr rtype;
-            //find_type(type,rtype);
-            add_type(hierarchy,type,st_iter->lineno);
-            ret = type;
-            return 1;
-        }else if(st_iter->n_children == 5){             // StructSpecifier -> STRUCT OptTag LC DefList RC
-            type = (TypePtr)malloc(sizeof(struct TypeItem_t));
-            type->kind = STRUCTURE;
-            if(st_iter->children[1]->n_children == 1){  // StructSpecifier -> STRUCT ID LC DefList RC
-                sprintf(type->name,"struct%s",st_iter->children[1]->children[0]->data.string_value);
-            }else
-                sprintf(type->name,"struct");
-            type->info.structure.define = 1;
-            type->level = hierarchy;
+        if(var->name){
+            printf("%-24s",var->name);
         }
+        if(VarTableStack.size-1)
+            printf("Local  %d\n",VarTableStack.size-1);
+        else
+            printf("Global\n");
     }
-
 }

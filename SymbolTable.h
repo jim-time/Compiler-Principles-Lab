@@ -6,6 +6,12 @@
 #include "my_vector.h"
 #include "SyntaxTree.h"
 
+#define FUNC_DECLARED 0x1
+#define FUNC_DEFINED 0x2
+
+typedef struct FuncTable_t* FuncTablePtr;
+typedef struct VarTable_t* VarTablePtr;
+
 struct FuncTable_t{
     TypePtr ret_type;
     char* name;     //key
@@ -26,6 +32,9 @@ struct VarTable_t{
 //level
 extern int CompStLevel;
 
+//is func equal 
+int isFuncEqual(struct FuncTable_t* fa, struct FuncTable_t* fb);
+
 //symbol table (hash)
 extern struct FuncTable_t *functions;
 extern struct VarTable_t *vars;
@@ -36,8 +45,8 @@ int vartab_stack_create();
 int vartab_stack_pop();
 int vartab_stack_push();
 
-int vartab_list_push(struct VarTable_t* start, struct VarTable_t* var);
-int vartab_list_pop(struct VarTable_t* start);
+int vartab_list_push(struct VarTable_t** start, struct VarTable_t** var);
+int vartab_list_pop(struct VarTable_t** start);
 
 int vartab_isEqual(struct VarTable_t** a, struct VarTable_t** b); //not define
 //function table
@@ -50,9 +59,5 @@ int add_var(int level, TypePtr type, char* name, int lineno);
 int find_var(char* name, struct VarTable_t* entry);
 int clear_local_var();
 void print_vartable();
-
-//syntax tree analyze
-int ST_FuncDec(struct SyntaxTreeNode* specifier,struct SyntaxTreeNode* dec);
-int ST_ExtVarDec(struct SyntaxTreeNode* Specifier, struct SyntaxTreeNode* ExtDecList, TypePtr ret);
 
 #endif

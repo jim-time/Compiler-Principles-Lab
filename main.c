@@ -8,9 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "SyntaxTree.h"
-#include "SymbolTable.h"
-#include "TypeCheck.h"
+#include "main.h"
 
 extern FILE *yyin;
 extern int yylex (void);
@@ -22,10 +20,6 @@ FILE *pscanner;
 struct SyntaxTreeNode* root;
 int error_hint = 0;
 int main(int argc, char** argv) {
-    //create a type table & symbol table
-    tt_create();
-    vartab_stack_create();
-
     FILE *pfile;
     if (argc > 1) {
         if(argc == 2){  /*Normal Mode*/
@@ -44,12 +38,13 @@ int main(int argc, char** argv) {
         }
         yydebug = 0;
     }
-    pscanner = fopen("scanneroutput.txt","w+");
+    pscanner = fopen("scanner.output","w+");
     yyrestart(pfile);
     yyparse();
-    if(error_hint == 0)
+    if(error_hint == 0){
         PreOrderTraverse(root,0);
-    print_functable();
+        ST_Program(root);
+    }
     fclose(pscanner);
     return 0;
 }
