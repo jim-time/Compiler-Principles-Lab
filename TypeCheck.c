@@ -104,7 +104,7 @@ int tt_push_bucket(){
 int tt_pop_bucket(){
     if(nt_bucket<1)
         return 0;
-    while(typetable[nt_bucket-1]->next){
+    while(typetable[nt_bucket-1]){
         if(tt_pop_type(nt_bucket - 1))
             continue;
         else
@@ -140,32 +140,34 @@ int tt_pop_type(int bucket_index){
 
 TypePtr add_type(int level, TypePtr type, int lineno){
     struct TypeItem_t* entry;
-    HASH_FIND_STR(types,type->name,entry);
+    HASH_FIND_STR(types,type->name,entry);    
     if(entry){
         if(entry->kind == BASIC)
             return entry;
         if(entry->kind == ARRAY && (entry->level == level)){
             return entry;
         }
-        if(entry->kind == STRUCTURE  && (entry->level == level)){
-            if(entry->info.structure.define & TYPE_DECLARED){
-                if(type->info.structure.define & TYPE_DECLARED){
-                    return entry;
-                }else if(type->info.structure.define & TYPE_DEFINED){
-                    type->info.structure.define |=TYPE_DECLARED;
-                    type->level = level;
-                    type->next = entry->next;
-                    type->hh = entry->hh;
-                    memmove(entry,type,sizeof(struct TypeItem_t));
-                    return entry;
-                }
-            }else if(entry->info.structure.define & TYPE_DEFINED){
-                if(type->info.structure.define & TYPE_DECLARED){
-                    entry->info.structure.define |=TYPE_DECLARED;
-                    return entry;
-                }else if(type->info.structure.define & TYPE_DEFINED){
-                    printf("Error type %d at line %d: Redefined structure \"%s\"\n",REDEFINED_STRUCT,lineno,type->name);
-                    return entry;
+        if(entry->kind == STRUCTURE){
+            if(entry->level == level){
+                if(entry->info.structure.define & TYPE_DECLARED){
+                    if(type->info.structure.define & TYPE_DECLARED){
+                        return entry;
+                    }else if(type->info.structure.define & TYPE_DEFINED){
+                        type->info.structure.define |=TYPE_DECLARED;
+                        type->level = level;
+                        type->next = entry->next;
+                        type->hh = entry->hh;
+                        memmove(entry,type,sizeof(struct TypeItem_t));
+                        return entry;
+                    }
+                }else if(entry->info.structure.define & TYPE_DEFINED){
+                    if(type->info.structure.define & TYPE_DECLARED){
+                        entry->info.structure.define |=TYPE_DECLARED;
+                        return entry;
+                    }else if(type->info.structure.define & TYPE_DEFINED){
+                        printf("Error type %d at line %d: Redefined structure \"%s\"\n",REDEFINED_STRUCT,lineno,type->name);
+                        return entry;
+                    }
                 }
             }
         }

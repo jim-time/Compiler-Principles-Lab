@@ -4,6 +4,7 @@
 
 #define TYPE_DECLARED 0x1
 #define TYPE_DEFINED  0x2 
+#define TYPE_REFERENCE 0x4
 
 typedef struct TypeItem_t TypeTable_t;
 struct FieldList;
@@ -17,7 +18,7 @@ typedef struct FieldList* FieldListPtr;
 #define TYPE_NAME_LEN 48
 struct TypeItem_t
 {
-    enum { BASIC, ARRAY, STRUCTURE } kind;
+    enum { NOTYPE,BASIC, ARRAY, STRUCTURE } kind;
     char* name;
     union
     {
@@ -28,7 +29,10 @@ struct TypeItem_t
         // structure info
         struct {FieldListPtr elem; int define;}structure;
     }info;
-    int level;
+    union{
+        struct { unsigned short hierarchy; unsigned short compst;};
+        int level;
+    };
     struct TypeItem_t *next;
     UT_hash_handle hh;
 };
@@ -37,6 +41,7 @@ struct FieldList
 {
     char* name; // 域的名字
     TypePtr type; // 域的类型
+    void* val_ptr;  //value
     int lineno;
     FieldListPtr tail; // 下一个Def域
 };

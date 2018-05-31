@@ -1,6 +1,15 @@
 {
     "files.associations": {
         "array": "c",
-        "initializer_list": "c"
+        "initializer_list": "c",
+        "slist": "cpp",
+        "typeinfo": "cpp",
+        "*.ipp": "c",
+        "syntaxtree.h": "c",
+        "functional": "c",
+        "tuple": "c",
+        "utility": "c",
+        "thread": "c",
+        "main.h": "c"
     }
 }

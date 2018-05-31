@@ -5,7 +5,8 @@
 #include "SymbolTable.h"
 #include "my_vector.h"
 
-extern int hierarchy;
+#define FUNC_PARAM_LEN 128
+extern uint16_t hierarchy;
 
 //syntax tree analyze
 int ST_Program(struct SyntaxTreeNode* Program);
@@ -23,16 +24,22 @@ int ST_FuncDec(struct SyntaxTreeNode* FuncDec,FuncTablePtr func);
 int ST_VarList(struct SyntaxTreeNode* VarList,FuncTablePtr func);
 int ST_ParamDec(struct SyntaxTreeNode* ParamDec, FieldListPtr* para);
 
-int ST_CompSt(struct SyntaxTreeNode* CompSt);
-int ST_StmtList(struct SyntaxTreeNode* StmtList);
-int ST_Stmt(struct SyntaxTreeNode* Stmt);
+int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func);
+int ST_StmtList(struct SyntaxTreeNode* StmtList,FuncTablePtr func);
+int ST_Stmt(struct SyntaxTreeNode* Stmt,FuncTablePtr func);
 int ST_DefList(struct SyntaxTreeNode* DefList,FieldListPtr* ret_field);
 int ST_Def(struct SyntaxTreeNode* Def,FieldListPtr* ret_field);
 
 int ST_DecList(struct SyntaxTreeNode* DecList,TypePtr field_type,FieldListPtr* ret_field);
 int ST_Dec(struct SyntaxTreeNode* Dec,TypePtr field_type,FieldListPtr* ret_field);
 
-int ST_Exp(struct SyntaxTreeNode* Exp);
-int ST_Args(struct SyntaxTreeNode* Args);
+int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val);
+int ST_Args(struct SyntaxTreeNode* Args, FieldListPtr* ret_val);
+
+int ST_ASSIGNOP(struct SyntaxTreeNode* LVal,struct SyntaxTreeNode* RVal, FieldListPtr* ret_val);
+int ST_Array(struct SyntaxTreeNode* ArrBase, struct SyntaxTreeNode* ArrIndex, FieldListPtr* ret_val);
+int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, FieldListPtr* ret_val);
+int ST_Arithmetic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, struct SyntaxTreeNode* b, FieldListPtr* ret_val);
+int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, struct SyntaxTreeNode* b, FieldListPtr* ret_val);
 
 #endif

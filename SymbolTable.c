@@ -5,19 +5,24 @@
 #include "my_vector.h"
 
 //level
-int CompStLevel = 0;
+uint16_t CompStLevel = 0;
 
-/** Symbol table(hash)
- *
- * 
+/**
+ *  @file   SymbolTable.c
+ *  @brief  Symbol Table(hash) Header
+ *  @author jim
+ *  @date   2018-5-29
+ *  @version: v1.0
 **/ 
 
 struct FuncTable_t *functions = NULL;
 struct VarTable_t *vars = NULL;
-
-/*Symbol table(stack)
- *
- * 
+/**
+ *  @file   SymbolTable.c
+ *  @brief  Symbol Table(Stack) Operation
+ *  @author jim
+ *  @date   2018-5-29
+ *  @version: v1.0
 **/ 
 vec_t VarTableStack = {
     NULL,
@@ -49,7 +54,7 @@ int vartab_stack_push(){
 int vartab_stack_pop(){
     struct VarTable_t* bucket, *discard;
     VarTableStack.pop(&VarTableStack,&bucket);
-    while(bucket->next){
+    while(bucket){
         vartab_list_pop(&bucket);
     }
     return 1;
@@ -73,6 +78,7 @@ int vartab_list_pop(struct VarTable_t** start){
     }
 
     struct VarTable_t* old = *start;
+    //HASH_DEL(types,old);
     *start = (*start)->next;
     free(old);
     return 1;
@@ -80,14 +86,17 @@ int vartab_list_pop(struct VarTable_t** start){
 
 
 /**
- *function table
- * 
+ *  @file   SymbolTable.c
+ *  @brief  Function Table Operation
+ *  @author jim
+ *  @date   2018-5-29
+ *  @version: v1.0
 **/ 
 
 int isFuncEqual(struct FuncTable_t* fa, struct FuncTable_t* fb){
     if(fa->n_param == fb->n_param){
-        if(isTypeEqual(fa->ret_type,fb->ret_type)){
-            if(isFieldEqual(fa->param_list,fb->param_list))
+        if(isTypeEqual(fa->ret_type,fb->ret_type)){             //ret_type
+            if(isFieldEqual(fa->param_list,fb->param_list))     //para_type
                 return 1;
         }
     }
@@ -101,7 +110,7 @@ int add_func(struct FuncTable_t* entry, int lineno){
         if(func->define & FUNC_DECLARED){
            if(entry->define & FUNC_DEFINED){
                if(!isFuncEqual(func,entry)){
-                   printf("Error type [%d] at line [%d]: Confilcting types for \"%s\"\n",CONFLIT_FUNC,lineno,entry->name);
+                   printf("Error type %d at line %d: Confilcting types for \"%s\"\n",CONFLIT_FUNC,lineno,entry->name);
                    //return func;
                    return 0;
                }
@@ -111,14 +120,15 @@ int add_func(struct FuncTable_t* entry, int lineno){
                //return func;
                return 1;
            }else if(entry->define & FUNC_DECLARED){
-                printf("Error type [%d] at line [%d]: Redefined function \"%s\"\n",REDEFINED_FUNC,lineno,entry->name);
+                if(!isFuncEqual(entry,func))
+                    printf("Error type %d at line %d: Inconsistent declaration of function \"%s\"\n",INCOSISTENT_FUNC_DEC,lineno,entry->name);
                 //return func;
                 return 0;
            }
         }else if(func->define & FUNC_DEFINED){
             if(entry->define & FUNC_DECLARED){          // defined a func and then use it
                 if(!isFuncEqual(func,entry)){
-                    printf("Error type [%d] at line [%d]: Confilcting types for \"%s\"\n",CONFLIT_FUNC,lineno,entry->name);
+                    printf("Error type %d at line %d: Confilcting types for \"%s\"\n",CONFLIT_FUNC,lineno,entry->name);
                     //return func;
                     return 0;
                 }
@@ -126,7 +136,7 @@ int add_func(struct FuncTable_t* entry, int lineno){
                 //return func;
                 return 1;
             }else if(entry->define & FUNC_DEFINED){
-                printf("Error type [%d] at line [%d]: Redefined function \"%s\"\n",REDEFINED_FUNC,lineno,entry->name);
+                printf("Error type %d at line %d: Redefined function \"%s\"\n",REDEFINED_FUNC,lineno,entry->name);
                 //return func;
                 return 1;
             }
@@ -139,9 +149,18 @@ int add_func(struct FuncTable_t* entry, int lineno){
     return 1;
 }
 
-int find_func(char* name, struct FuncTable_t* entry){
-    HASH_FIND_STR(functions,name,entry);
+int find_func(char* name, struct FuncTable_t** entry){
+    HASH_FIND_STR(functions,name,*entry);
     return 1;
+}
+
+void check_func_def(){
+    struct FuncTable_t* func;
+    for(func = functions; func != NULL; func = (struct FuncTable_t*)(func->hh.next)){
+        if(func->define & FUNC_DEFINED)
+            continue;
+        printf("Error type %d at line %d: Undefined Function \"%s\"\n",UNDEFINED_FUNC,func->lineno,func->name);
+    }
 }
 
 void print_functable() {
@@ -172,15 +191,28 @@ void print_functable() {
     return;
 }
 
-/**variable table
- *
- * 
+void print_param(FieldListPtr paramlist){
+    FieldListPtr pParam = paramlist;
+    for(;pParam;pParam = pParam->tail){
+        if(pParam->tail)
+            printf("%s, ",pParam->type->name);
+        else
+            printf("%s",pParam->type->name);
+    }
+}
+
+/**
+ *  @file   SymbolTable.c
+ *  @brief  Variable Table Operation
+ *  @author jim
+ *  @date   2018-5-29
+ *  @version: v1.0
 **/ 
 int add_var(int level, TypePtr type, char* name, int lineno){
     struct VarTable_t* entry;
     HASH_FIND_STR(vars,name,entry);
     if(entry && (entry->level == level)){
-        printf("Error type [%d] at line [%d]: Redefined variable \"%s\"\n",REDEFINED_VAR,lineno,name);
+        printf("Error type %d at line %d: Redefined variable \"%s\"\n",REDEFINED_VAR,lineno,name);
         return 0;
     }
 
@@ -189,16 +221,16 @@ int add_var(int level, TypePtr type, char* name, int lineno){
     entry->type = type;
     entry->level = level;
     entry->name = name;
+    entry->val_ptr = NULL;
     HASH_ADD_KEYPTR(hh,vars,entry->name,strlen(entry->name),entry);
 
     vartab_list_push(&VarTableStack.elem[VarTableStack.size-1],&entry);
     return 1;
 }
 
-
-int find_var(char* name, struct VarTable_t* entry){
+int find_var(char* name, struct VarTable_t** entry){
     //entry->name = name;
-    HASH_FIND_STR(vars,name,entry);
+    HASH_FIND_STR(vars,name,*entry);
     return 1;
 }
 

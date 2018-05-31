@@ -11,12 +11,14 @@
 
 typedef struct FuncTable_t* FuncTablePtr;
 typedef struct VarTable_t* VarTablePtr;
+typedef struct ExpVal_t* ExpValPtr;
 
 struct FuncTable_t{
     TypePtr ret_type;
     char* name;     //key
     int n_param;
     FieldListPtr param_list;
+    int lineno;
     int define;
     UT_hash_handle hh;
 };
@@ -24,13 +26,18 @@ struct FuncTable_t{
 struct VarTable_t{
     TypePtr type;
     char* name;     //key
+    void* val_ptr;
     int level;
     struct VarTable_t* next;
     UT_hash_handle hh;
 };
 
+struct ExpVal_t{
+    VarTablePtr var;
+    ExpValPtr next;
+};
 //level
-extern int CompStLevel;
+extern uint16_t CompStLevel;
 
 //is func equal 
 int isFuncEqual(struct FuncTable_t* fa, struct FuncTable_t* fb);
@@ -51,12 +58,14 @@ int vartab_list_pop(struct VarTable_t** start);
 int vartab_isEqual(struct VarTable_t** a, struct VarTable_t** b); //not define
 //function table
 int add_func(struct FuncTable_t* entry, int lineno);
-int find_func(char* name, struct FuncTable_t* entry);
+int find_func(char* name, struct FuncTable_t** entry);
 void print_functable();
+void check_func_def();
+void print_param(FieldListPtr paramlist);
 
 //variable table
 int add_var(int level, TypePtr type, char* name, int lineno);
-int find_var(char* name, struct VarTable_t* entry);
+int find_var(char* name, struct VarTable_t** entry);
 int clear_local_var();
 void print_vartable();
 
