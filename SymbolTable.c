@@ -3,6 +3,7 @@
 #include "SyntaxTree.h"
 #include "errtype.h"
 #include "my_vector.h"
+#include "SemanticAnalysis.h"
 
 //level
 uint16_t CompStLevel = 0;
@@ -112,7 +113,7 @@ int add_func(struct FuncTable_t* entry, int lineno){
                if(!isFuncEqual(func,entry)){
                    printf("Error type %d at line %d: Confilcting types for \"%s\"\n",CONFLIT_FUNC,lineno,entry->name);
                    //return func;
-                   return 0;
+                   //return 0;
                }
                entry->define |=FUNC_DECLARED;
                entry->hh = func->hh;
@@ -212,7 +213,10 @@ int add_var(int level, TypePtr type, char* name, int lineno){
     struct VarTable_t* entry;
     HASH_FIND_STR(vars,name,entry);
     if(entry && (entry->level == level)){
-        printf("Error type %d at line %d: Redefined variable \"%s\"\n",REDEFINED_VAR,lineno,name);
+        if(hierarchy)
+            printf("Error type %d at line %d: Redefined field \"%s\"\n",REDEFINED_FIELD,lineno,name);
+        else
+            printf("Error type %d at line %d: Redefined variable \"%s\"\n",REDEFINED_VAR,lineno,name);
         return 0;
     }
 

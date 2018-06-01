@@ -1,5 +1,7 @@
 #include "main.h"
+#define PRINT_TBALE 0
 
+//struct hierarchy
 uint16_t hierarchy = 0;
 
 /*Syntax tree analize
@@ -13,9 +15,11 @@ int ST_Program(struct SyntaxTreeNode* Program){                             // P
     vartab_stack_create();
 
     ST_ExtDefList(Program->children[0]);
-    print_typetable();
-    print_vartable();
-    print_functable();
+    #if PRINT_TBALE
+        print_typetable();
+        print_vartable();
+        print_functable();
+    #endif
     return 1;
 }
 
@@ -207,7 +211,9 @@ int ST_StructSpecifier(struct SyntaxTreeNode* StructSpecifier,TypePtr* ret){
         hierarchy--;
         //tt_pop_bucket();
         *ret = add_type(type->level,type,st_iter->children[0]->lineno);
-        print_vartable();
+        #if PRINT_TBALE
+            print_vartable();
+        #endif
         clear_local_var();
         return 1;
     }
@@ -221,7 +227,7 @@ int ST_OptTag(struct SyntaxTreeNode* OptTag,const char** ret_id){
         *ret_id = NULL;
     }
     return 1;
-}int print_typetable();
+}
 
 int ST_Tag(struct SyntaxTreeNode* Tag, const char** ret_id){                  // Tag -> ID
     *ret_id = Tag->children[0]->data.string_value;
@@ -356,8 +362,11 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
             return 0;
         }
     }
-    print_typetable();
-    print_vartable();
+    #if PRINT_TBALE
+        print_typetable();
+        print_vartable();
+    #endif
+
     tt_pop_bucket();
     clear_local_var();
     CompStLevel--;
@@ -574,7 +583,11 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
                         }
                     }
                     if(!pStruct){                                            // find faield
-                         printf("Error type %d at line %d: Struct %s has no field \"%s\"\n",NOT_MEMBER,Exp->children[0]->lineno,(*ret_val)->name,id_name);
+                        printf("Error type %d at line %d: Struct %s has no field \"%s\"\n",NOT_MEMBER,Exp->children[0]->lineno,(*ret_val)->name,id_name);
+                        // what if ret_val is a NULL 
+                        char* fieldname = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
+                        sprintf(fieldname,"%s.%s",(*ret_val)->name,id_name);
+                        (*ret_val)->name = fieldname;
                         (*ret_val)->type->kind = NOTYPE;
                         (*ret_val)->val_ptr = NULL;
                         return 0;
@@ -652,7 +665,8 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             tp->name = "int";
             find_type(tp,&(*ret_val)->type);
             free(tp);
-            (*ret_val)->name = "int";
+            (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
+            sprintf((*ret_val)->name,"%d",Exp->children[0]->data.int_value);
             (*ret_val)->val_ptr = (void*)&(Exp->children[0]->data.int_value);
             return 1;
         }else if(!strcmp(Exp->children[0]->node_name,"FLOAT")){             // Exp : FLOAT
@@ -661,8 +675,9 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             tp->name = "float";
             find_type(tp,&(*ret_val)->type);
             free(tp);
-            (*ret_val)->name = "float";
-            (*ret_val)->val_ptr = (void*)&(Exp->children[0]->data.int_value);
+            (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
+            sprintf((*ret_val)->name,"%f",Exp->children[0]->data.float_value);
+            (*ret_val)->val_ptr = (void*)&(Exp->children[0]->data.float_value);
             return 1;
         }
     }
@@ -823,9 +838,9 @@ int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, Fie
     //  Function "func(int)" is not applicable for arguments"(int, int)"
     if(!args){                              
         if(func->n_param != 0){
-            printf("Error type %d at line %d: Function \"%s()\" is not applicable for arguments \"%s(",ERR_FUNC_ARGS,func_id->lineno,func_id->data.string_value,func->name);
+            printf("Error type %d at line %d: Function \"%s(",ERR_FUNC_ARGS,func_id->lineno,func->name);
             print_param(func->param_list);
-            printf(")\"\n");
+            printf(")\" is not applicable for arguments \"%s()",func_id->data.string_value);
             (*ret_val)->val_ptr = NULL;
             return 0;
         }
@@ -844,10 +859,10 @@ int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, Fie
             //call func
             //(*ret_val)->val_prt = xxx;
         }else{
-            printf("Error type %d at line %d: Function \"%s(",ERR_FUNC_ARGS,func_id->lineno,func_id->data.string_value);
-            print_param(ref_args);
-            printf(")\" is not applicable for arguments \"%s(",func->name);
+            printf("Error type %d at line %d: Function \"%s(",ERR_FUNC_ARGS,func_id->lineno,func->name);
             print_param(func->param_list);
+            printf(")\" is not applicable for arguments \"%s(",func_id->data.string_value);
+            print_param(ref_args);
             printf(")\"\n");
             (*ret_val)->val_ptr = NULL;
             return 0;
@@ -920,7 +935,7 @@ int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, str
         return 0;
     }
     if(!strcmp(operation->node_name,"AND") || !strcmp(operation->node_name,"OR")){  //opa && ||  opb
-        if(opa->type->info.basic == BASIC_INT){    // Success
+        if(opa->type->info.basic == BASIC_INT){                                     // Success
             if(opb->type->info.basic == BASIC_INT){
                 (*ret_val) = opa;
                 return 1;
@@ -943,6 +958,11 @@ int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, str
     }else{  //opa > < >= <= == != opb
         if(opa->type->info.basic == opb->type->info.basic){    // Success
             (*ret_val) = opa;
+            /*(*ret_val) = (FieldListPtr)malloc(sizeof(struct FieldList));
+            memcpy((*ret_val),opa,sizeof(struct FieldList));
+            (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN * sizeof(char));
+            sprintf((*ret_val)->name,"%s %s %s",opa->name,operation->data.string_value,opb->name);
+            (*ret_val)->type->info.basic = BASIC_INT;*/
             //opa +-*/ opb
             return 1;
         }else{

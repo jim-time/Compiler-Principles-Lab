@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0){
-        PreOrderTraverse(root,0);
+        //PreOrderTraverse(root,0);
         ST_Program(root);
     }
     fclose(pscanner);
