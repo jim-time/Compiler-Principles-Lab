@@ -7,6 +7,7 @@
 #define TYPE_REFERENCE 0x4
 
 typedef struct TypeItem_t TypeTable_t;
+typedef TypeTable_t TypeTable;
 struct FieldList;
 
 typedef struct TypeItem_t* TypePtr;
@@ -15,23 +16,23 @@ typedef struct FieldList* FieldListPtr;
 
 #define BASIC_INT 1
 #define BASIC_FLOAT 2
-#define TYPE_NAME_LEN 48
+#define TYPE_NAME_LEN 32
 struct TypeItem_t
 {
     enum { NOTYPE,BASIC, ARRAY, STRUCTURE } kind;
     char* name;
     union
     {
-        // basic info = BASIC_INT | BASIC_FLOAT
+        // basic info = BASIC_INT || BASIC_FLOAT
         int basic;
         // array info
-        struct { TypePtr elem; int size; } array;
+        struct { TypePtr elem; int index; int size; } array;
         // structure info
-        struct {FieldListPtr elem; int define;}structure;
+        struct {FieldListPtr elem; int define;int size;}structure;
     }info;
     union{
-        struct { unsigned short hierarchy; unsigned short compst;};
-        int level;
+        struct { uint32_t hierarchy:16; uint32_t compst:16;};
+        uint32_t level;
     };
     struct TypeItem_t *next;
     UT_hash_handle hh;
@@ -39,11 +40,12 @@ struct TypeItem_t
 
 struct FieldList
 {
-    char* name; // 域的名字
-    TypePtr type; // 域的类型
+    char* name; // name of the field
+    char* alias;
+    TypePtr type; // type of field
     void* val_ptr;  //value
     int lineno;
-    FieldListPtr tail; // 下一个Def域
+    FieldListPtr tail; // next field
 };
 
 

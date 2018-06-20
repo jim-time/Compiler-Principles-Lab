@@ -1,5 +1,5 @@
 #include "main.h"
-#define PRINT_TBALE 0
+#define PRINT_TBALE 1
 
 //struct hierarchy
 uint16_t hierarchy = 0;
@@ -13,12 +13,18 @@ int ST_Program(struct SyntaxTreeNode* Program){                             // P
     //create a type table & symbol table
     tt_create();
     vartab_stack_create();
+    functab_create();
+
+    //create intercodes
+    intercodes.create(&intercodes);
 
     ST_ExtDefList(Program->children[0]);
     #if PRINT_TBALE
         print_typetable();
         print_vartable();
         print_functable();
+
+        print_intercodes();
     #endif
     return 1;
 }
@@ -97,22 +103,23 @@ int ST_ExtDef(struct SyntaxTreeNode* ExtDef){
 int ST_ExtDecList(struct SyntaxTreeNode* ExtDecList, TypePtr field_type){
     struct SyntaxTreeNode* pExtDecList = ExtDecList;
     FieldListPtr field;
-    TypePtr temp;
-    temp->compst = CompStLevel;
-    temp->hierarchy = hierarchy;
     for(;pExtDecList->n_children == 3;pExtDecList = pExtDecList->children[2]){
         if(!ST_VarDec(pExtDecList->children[0],field_type, &field)){
             printf("Get VarDec failed\n");
             return 0;
         }
-        if(!add_var(temp->level,field->type,field->name,pExtDecList->lineno)){
+        if(!add_var(0,field->type,field->name,pExtDecList->lineno)){
             return 0;
         }
+        //create intercodes for global variable
+        translate_globalvar(field->name);
     }
     if(ST_VarDec(pExtDecList->children[0],field_type, &field)){                   // ExtDecList -> VarDec
-        if(!add_var(temp->level,field->type,field->name,pExtDecList->lineno)){
+        if(!add_var(0,field->type,field->name,pExtDecList->lineno)){
             return 0;
         }
+        //create intercodes for global varable
+        translate_globalvar(field->name);
     }
     return 1;
 }
@@ -161,8 +168,8 @@ int ST_StructSpecifier(struct SyntaxTreeNode* StructSpecifier,TypePtr* ret){
         type->compst = CompStLevel;
         type->hierarchy = hierarchy;
         
-        if(!strcmp(StructSpecifier->parent->parent->node_name,"ExtDef")){       //DECLARED
-            type->info.structure.define = TYPE_DECLARED;
+        if(!strcmp(StructSpecifier->parent->parent->children[1]->node_name,"SEMI")){       //DECLARED
+            type->info.structure.define |= TYPE_DECLARED;
             *ret = add_type(type->level,type,st_iter->lineno);
         }else{                                                                  // TYPE_REFERENCE
             TypePtr ret_type;
@@ -189,7 +196,8 @@ int ST_StructSpecifier(struct SyntaxTreeNode* StructSpecifier,TypePtr* ret){
             sprintf(type->name,"struct %s",id);
         }else
             sprintf(type->name,"struct");
-        type->info.structure.define = TYPE_DEFINED;
+        type->info.structure.define |= TYPE_DEFINED;
+        type->info.structure.size = 0;
 
         vartab_stack_push();
         //tt_push_bucket();
@@ -205,7 +213,29 @@ int ST_StructSpecifier(struct SyntaxTreeNode* StructSpecifier,TypePtr* ret){
         type->info.structure.elem = l_vars;
         // add local vars
         for(;l_vars;l_vars = l_vars->tail){
-            add_var(type->level,l_vars->type,l_vars->name,l_vars->lineno);
+            //add_var(type->level,l_vars->type,l_vars->name,l_vars->lineno);
+            // compute the size of struture
+            int array_size = 1;
+            TypePtr parr = l_vars->type;
+            switch(l_vars->type->kind){
+                case BASIC:
+                    type->info.structure.size +=4;
+                    break;
+                case ARRAY:                    
+                    for(;parr->kind == ARRAY; parr = parr->info.array.elem){
+                        array_size *= (parr->info.array.size);
+                    }
+                    if(parr->kind == BASIC)
+                        type->info.structure.size += (4*array_size);
+                    else if(parr->kind == STRUCTURE)
+                        type->info.structure.size += (parr->info.structure.size * array_size);
+                    break;
+                case STRUCTURE:
+                    type->info.structure.size += l_vars->type->info.structure.size;
+                    break;
+                default:
+                    break;
+            }
         }
         //CompStLevel--;
         hierarchy--;
@@ -242,16 +272,22 @@ int ST_Tag(struct SyntaxTreeNode* Tag, const char** ret_id){                  //
 // VarDec -> VarDec LB INT RB
 int ST_VarDec(struct SyntaxTreeNode* VarDec,TypePtr field_type, FieldListPtr* ret_field){   
     struct SyntaxTreeNode* pVarDec = VarDec;
-    int n_bracket;
+    int arr_index;
     if(strcmp(VarDec->parent->node_name,"VarDec")){                             // (not a VarDec)-> VarDec -> xxx
         (*ret_field) = (FieldListPtr)malloc(sizeof(struct FieldList));
         (*ret_field)->type = field_type;
     }
-    for(n_bracket = 0;pVarDec->n_children == 4;pVarDec = pVarDec->children[0],n_bracket++){               // VarDec -> VarDec LB INT RB
+    for(arr_index = 1;pVarDec->n_children == 4;pVarDec = pVarDec->children[0]){               // VarDec -> VarDec LB INT RB
         TypePtr arr_type = (TypePtr)malloc(sizeof(struct TypeItem_t));
         arr_type->kind = ARRAY;
         arr_type->info.array.size = pVarDec->children[2]->data.int_value;
-        arr_type->level = CompStLevel + hierarchy;
+        // arr_index used for generate intercodes
+        arr_type->info.array.index = arr_index;
+        arr_index *= arr_type->info.array.size;
+
+        arr_type->compst = CompStLevel;
+        arr_type->hierarchy = hierarchy;
+        //arr_type->level = CompStLevel + hierarchy;
         arr_type->name = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
         if(strcmp(pVarDec->parent->node_name,"VarDec"))
             sprintf(arr_type->name,"%s []",(*ret_field)->type->name);
@@ -343,10 +379,15 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
                 add_var(CompStLevel,pParam->type,pParam->name,pParam->lineno);
             }
         }
+        // enter the function  and clear the cnt for local variable
+        local_cnt = 0;
+        temp_cnt = 0;
+        // generate intercodes on function declaration
+        translate_func(func);
     }
     // CompSt -> LC DefList StmtList RC
     if(ST_DefList(CompSt->children[1],&l_vars)){
-        if(CompSt->children[1]->n_children){
+        /*if(CompSt->children[1]->n_children){
             // add local vars
             TypePtr temp;
             temp->compst = CompStLevel;
@@ -354,7 +395,7 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
             for(;l_vars;l_vars = l_vars->tail){
                 add_var(temp->level,l_vars->type,l_vars->name,l_vars->lineno);
             }
-        }
+        }*/
         if(!ST_StmtList(CompSt->children[2],func)){
             tt_pop_bucket();
             clear_local_var();
@@ -508,19 +549,36 @@ int ST_DecList(struct SyntaxTreeNode* DecList,TypePtr field_type,FieldListPtr *r
 }
 
 int ST_Dec(struct SyntaxTreeNode* Dec,TypePtr field_type,FieldListPtr* ret_field){                                      
+    // update the CompStLevel info
+    TypeTable t;
+    t.compst = CompStLevel;
+    t.hierarchy = hierarchy;
 
     if(Dec->n_children == 1){                                               // Dec -> VarDec
         if(!ST_VarDec(Dec->children[0],field_type, ret_field)){
             printf("Get the VarDec failed\n");
             return 0;
         }
+        // add local variable
+        add_var(t.level,(*ret_field)->type,(*ret_field)->name,(*ret_field)->lineno);
+        // create the intercodes for local variable
+        if(hierarchy == 0)
+            translate_localvar((*ret_field)->name);
     }else if(Dec->n_children == 3){                                         // Dec -> VarDec ASSIGNOP Exp
         if(!ST_VarDec(Dec->children[0],field_type, ret_field)){
             printf("Get the VarDec failed\n");
             return 0;
         }
+        // add local variable
+        add_var(t.level,(*ret_field)->type,(*ret_field)->name,(*ret_field)->lineno);
+
+        // create the intercodes for local variable
+        if(hierarchy == 0)
+            translate_localvar((*ret_field)->name);
+
+        // assign the value of expression to VarDec
         FieldListPtr exp_val;
-        if(!ST_Exp(Dec->children[2],&exp_val)){                                       // assign the value of expression to VarDec
+        if(!ST_Exp(Dec->children[2],&exp_val)){                                       
             printf("Get the Exp for VarDec failed\n");
             return 0;
         }
@@ -571,45 +629,7 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
         }else if(!strcmp(Exp->children[1]->node_name,"LP")){                // Exp : ID LP RP
             return ST_CallFunc(Exp->children[0], NULL, ret_val);
         }else if(!strcmp(Exp->children[1]->node_name,"DOT")){               // Exp : Exp DOT ID
-            if(ST_Exp(Exp->children[0],ret_val)){
-                if((*ret_val)->type->kind == STRUCTURE){
-                    char* id_name = Exp->children[2]->data.string_value;
-                    FieldListPtr pStruct;
-                    //find the field
-                    pStruct = (*ret_val)->type->info.structure.elem;
-                    for(;pStruct;pStruct = pStruct->tail){
-                        if(!strcmp(pStruct->name,id_name)){
-                            break;
-                        }
-                    }
-                    if(!pStruct){                                            // find faield
-                        printf("Error type %d at line %d: Struct %s has no field \"%s\"\n",NOT_MEMBER,Exp->children[0]->lineno,(*ret_val)->name,id_name);
-                        // what if ret_val is a NULL 
-                        char* fieldname = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
-                        sprintf(fieldname,"%s.%s",(*ret_val)->name,id_name);
-                        (*ret_val)->name = fieldname;
-                        (*ret_val)->type->kind = NOTYPE;
-                        (*ret_val)->val_ptr = NULL;
-                        return 0;
-                    }else{                                                  // find successfully
-                        FieldListPtr id;
-                        id = (FieldListPtr)malloc(sizeof(struct FieldList));
-                        id->type = (TypePtr)malloc(sizeof(struct TypeItem_t));
-                        memcpy(id->type,pStruct->type,sizeof(struct TypeItem_t));
-                        id->name = id_name;
-                        id->val_ptr = NULL;
-                        (*ret_val) = id;
-                        return 1;
-                    }
-                }else{
-                    if((*ret_val)->name)
-                        printf("Error type %d at line %d: Expression \"%s\" must have a structure \n",NOT_STURCT,Exp->children[0]->lineno,(*ret_val)->name);
-                    else
-                        printf("Error type %d at line %d: Expression \"%s\" must have a structure \n",NOT_STURCT,Exp->children[0]->lineno,"Exp");
-                    (*ret_val)->val_ptr = NULL;
-                    return 0;
-                }
-            }
+            ST_StructField(Exp->children[0],Exp->children[2],ret_val);
         }
     }else if(Exp->n_children == 2){
         if(!strcmp(Exp->children[0]->node_name,"MINUS")){                   // Exp : MINUS Exp
@@ -658,6 +678,7 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             (*ret_val)->type = var->type;
             (*ret_val)->val_ptr = var->val_ptr;
             (*ret_val)->name = var->name;
+            (*ret_val)->alias = var->alias;
             return 1;
         }else if(!strcmp(Exp->children[0]->node_name,"INT")){               // Exp : INT
             (*ret_val) = (FieldListPtr)malloc(sizeof(struct FieldList));
@@ -667,6 +688,7 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             free(tp);
             (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
             sprintf((*ret_val)->name,"%d",Exp->children[0]->data.int_value);
+            (*ret_val)->alias = "int";
             (*ret_val)->val_ptr = (void*)&(Exp->children[0]->data.int_value);
             return 1;
         }else if(!strcmp(Exp->children[0]->node_name,"FLOAT")){             // Exp : FLOAT
@@ -677,6 +699,7 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             free(tp);
             (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
             sprintf((*ret_val)->name,"%f",Exp->children[0]->data.float_value);
+            (*ret_val)->alias = "float";
             (*ret_val)->val_ptr = (void*)&(Exp->children[0]->data.float_value);
             return 1;
         }
@@ -732,6 +755,7 @@ int ST_ASSIGNOP(struct SyntaxTreeNode* LVal,struct SyntaxTreeNode* RVal, FieldLi
                         if(lval->type->info.basic != rval->type->info.basic){
                             printf("Error type %d at line %d: Type mismatched for assignment\n",MISMATCHED_ASSIGNMENT,LVal->lineno);
                         }else{
+                            // create the intercodes here
 
                         }
                     }
@@ -748,58 +772,139 @@ int ST_ASSIGNOP(struct SyntaxTreeNode* LVal,struct SyntaxTreeNode* RVal, FieldLi
     return 1;
 }
 
+
+//  +---------+------------------+--------------------+---+------------------+
+//  |elem_type|array[dimension k]|array[dimension k-1]|...|array[dimension 1]|
+//  +---------+------------------+--------------------+---+------------------+ 
 int ST_Array(struct SyntaxTreeNode* ArrBase, struct SyntaxTreeNode* ArrIndex, FieldListPtr* ret_val){
     FieldListPtr arr_index, arr_base;
+    FieldListPtr  ptail;
+    static FieldListPtr pfield;
+    static int arr_cnt = 0;
+    arr_cnt++;
+
     VarTablePtr arr;
-    if(ST_Exp(ArrIndex,&arr_index)){
-        if(arr_index->type->kind == BASIC && arr_index->type->info.basic == BASIC_INT){     // index of array is int (ok)
-            //pass the arr_index value to arr_base
-            //arr_index->type->kind = ARRAY;
-            //arr_index->val_ptr;
-            arr_index->tail = NULL;
-        }else{
-            if(arr_index->name)
-                printf("Error type %d at line %d: Array subscript \"[%s]\" is not an integer \n",NOT_INT,ArrIndex->lineno,arr_index->name);
-            else
-                printf("Error type %d at line %d: Array subscript \"[%s]\" is not an integer \n",NOT_INT,ArrIndex->lineno,"Exp");
-            arr_index->tail = NULL;
-        }
-        //return 1;
-    }
-    //   ____ ________ __________ ___ _______
-    //  |type|array[k]|array[k-1]|...|array[0]
     if(ST_Exp(ArrBase,&arr_base)){
+        // ArrBase -> ID
         if(ArrBase->n_children == 1 && !strcmp(ArrBase->children[0]->node_name,"ID")){
             find_var(arr_base->name,&arr);
             if(arr->type->kind == ARRAY){
-                arr_base->type = (TypePtr)malloc(sizeof(struct TypeItem_t));
+                //free(arr_base);
+                pfield = arr_base;
+                arr_base = (FieldListPtr)malloc(sizeof(struct FieldList));
                 TypePtr ptype = arr->type;
                 for(;ptype && ptype->kind == ARRAY;ptype = ptype->info.array.elem);
                 arr_base->type = ptype;
-                arr_base->name = arr->name;
-                //...val_ptr
-                arr_base->tail = arr_index;
+                arr_base->name = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
+                strcpy(arr_base->name,arr->name);
+                // the base address of array
+                arr_base->alias = arr->alias;
+                ptail = arr_base;
                 (*ret_val) = arr_base;
             }else{
                 printf("Error type %d at line %d: \"%s\" is not an array\n",NOT_ARRAY,ArrBase->lineno,arr_base->name);
                 (*ret_val) = arr_base;
                 (*ret_val)->val_ptr = NULL;
                 return 0;
-            }
+            }// ArrBase -> Exp DOT ID
+        }else if(ArrBase->n_children == 3 && !strcmp(ArrBase->children[2]->node_name,"ID")){         
+            pfield = arr_base;
+            arr_base = (FieldListPtr)malloc(sizeof(struct FieldList));
+            TypePtr ptype = pfield->type;
+            for(;ptype && ptype->kind == ARRAY;ptype = ptype->info.array.elem);
+            arr_base->type = ptype;
+            arr_base->name = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
+            strcpy(arr_base->name,pfield->name);
+            // the base address of array
+            arr_base->alias = pfield->alias;
+            ptail = arr_base;
+            (*ret_val) = arr_base;
         }else{
-            if(arr_index){
-                FieldListPtr ptail = arr_base;
-                for(;ptail->tail;ptail = ptail->tail);
-                ptail->tail = arr_index;
-            }
+            //get the tail of the array list
+            ptail = arr_base;
+            for(;ptail->tail;ptail = ptail->tail);
             (*ret_val) = arr_base;
         }
+    }
+    if(ST_Exp(ArrIndex,&arr_index)){
+        if(arr_index->type->kind == BASIC && arr_index->type->info.basic == BASIC_INT){     // index of array is int (correct)
+            ptail->tail = arr_index;
+            arr_index->tail = NULL;
+        }else{  // error hint
+            if(arr_index->name)
+                printf("Error type %d at line %d: Array subscript \"[%s]\" is not an integer \n",NOT_INT,ArrIndex->lineno,arr_index->name);
+            else
+                printf("Error type %d at line %d: Array subscript \"[%s]\" is not an integer \n",NOT_INT,ArrIndex->lineno,"Exp");
+            arr_index->tail = NULL;
+        }
+    }
+    // generate the intercodes for array
+    // Does the production stem from the other Exp ?
+    //|| ArrBase->parent->parent->n_children != 4 || (strcmp(ArrBase->parent->parent->children[1]->node_name,"LB"))
+    arr_cnt--;
+    if(arr_cnt == 0){
+        if(arr_base)
+            translate_arr(ArrBase,&pfield,ret_val);
     }
     return 1;
 }
 
 int ST_StructField(struct SyntaxTreeNode* Exp, struct SyntaxTreeNode* ID, FieldListPtr* ret_val){
-
+    if(ST_Exp(Exp,ret_val)){
+        if((*ret_val)->type->kind == STRUCTURE){
+            char* id_name = ID->data.string_value;
+            FieldListPtr pStruct;
+            //find the field & get the offset
+            int field_offset = 0;
+            pStruct = (*ret_val)->type->info.structure.elem;
+            for(;pStruct;pStruct = pStruct->tail){
+                if(!strcmp(pStruct->name,id_name)){
+                    break;
+                }
+                switch(pStruct->type->kind){
+                    case BASIC:
+                        field_offset += 4;
+                        break;
+                    case ARRAY:
+                        field_offset += (pStruct->type->info.array.size * pStruct->type->info.array.index);
+                        break;
+                    case STRUCTURE:
+                        field_offset += (pStruct->type->info.structure.size);
+                        break;
+                    default : break;
+                }
+            }
+            if(!pStruct){                                            // find faield
+                printf("Error type %d at line %d: Struct %s has no field \"%s\"\n",NOT_MEMBER,Exp->lineno,(*ret_val)->name,id_name);
+                // what if ret_val is a NULL 
+                char* fieldname = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
+                sprintf(fieldname,"%s.%s",(*ret_val)->name,id_name);
+                (*ret_val)->name = fieldname;
+                (*ret_val)->type->kind = NOTYPE;
+                (*ret_val)->val_ptr = NULL;
+                return 0;
+            }else{                                                  // find successfully
+                FieldListPtr id;
+                id = (FieldListPtr)malloc(sizeof(struct FieldList));
+                id->type = (TypePtr)malloc(sizeof(struct TypeItem_t));
+                memcpy(id->type,pStruct->type,sizeof(struct TypeItem_t));
+                id->name = id_name;
+                id->val_ptr = NULL;
+                
+                // generate the intercodes for the field of structure
+                translate_structfield(ret_val,&id,field_offset);
+                (*ret_val) = id;
+                return 1;
+            }
+        }else{
+            if((*ret_val)->name)
+                printf("Error type %d at line %d: Expression \"%s\" must have a structure \n",NOT_STURCT,Exp->lineno,(*ret_val)->name);
+            else
+                printf("Error type %d at line %d: Expression \"%s\" must have a structure \n",NOT_STURCT,Exp->lineno,"Exp");
+            (*ret_val)->val_ptr = NULL;
+            return 0;
+        }
+    }
     return 1;
 }
 
@@ -855,6 +960,8 @@ int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, Fie
         ref_func->name = func->name;
         ref_func->n_param = 0;
         for(;pargs;pargs = pargs->tail) ref_func->n_param++;
+        ref_func->param_list = ref_args;
+        
         if(isFuncEqual(func,ref_func)){
             //call func
             //(*ret_val)->val_prt = xxx;

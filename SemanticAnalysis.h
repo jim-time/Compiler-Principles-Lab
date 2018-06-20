@@ -38,6 +38,7 @@ int ST_Args(struct SyntaxTreeNode* Args, FieldListPtr* ret_val);
 
 int ST_ASSIGNOP(struct SyntaxTreeNode* LVal,struct SyntaxTreeNode* RVal, FieldListPtr* ret_val);
 int ST_Array(struct SyntaxTreeNode* ArrBase, struct SyntaxTreeNode* ArrIndex, FieldListPtr* ret_val);
+int ST_StructField(struct SyntaxTreeNode* Exp, struct SyntaxTreeNode* ID, FieldListPtr* ret_val);
 int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, FieldListPtr* ret_val);
 int ST_Arithmetic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, struct SyntaxTreeNode* b, FieldListPtr* ret_val);
 int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, struct SyntaxTreeNode* b, FieldListPtr* ret_val);

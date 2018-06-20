@@ -42,8 +42,16 @@ int main(int argc, char** argv) {
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0){
+        FILE* pic;
+        pic = fopen("./Output/out.ir","w+");
+        if(!pic){
+            printf("Failed to open out.ir\n");
+            return 0;
+        }
         //PreOrderTraverse(root,0);
         ST_Program(root);
+
+        fclose(pic);
     }
     fclose(pscanner);
     return 0;

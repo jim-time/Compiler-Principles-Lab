@@ -103,6 +103,34 @@ int isFuncEqual(struct FuncTable_t* fa, struct FuncTable_t* fb){
     }
     return 0;
 }
+int functab_create(){
+    FuncTablePtr read_func = (FuncTablePtr)malloc(sizeof(struct FuncTable_t));
+    TypePtr ret_type;
+    HASH_FIND_STR(types,"int",ret_type);
+    // add a function named "read"
+    read_func->ret_type = ret_type;
+    read_func->name = "read";
+    read_func->n_param = 0;
+    read_func->param_list = NULL;
+    read_func->lineno = 0;
+    read_func->define |= FUNC_DEFINED;
+    add_func(read_func,0);
+
+    // add a function named "write"
+    FuncTablePtr write_func = (FuncTablePtr)malloc(sizeof(struct FuncTable_t));
+    write_func->ret_type = ret_type;
+    write_func->name = "write";
+    write_func->n_param = 1;
+    write_func->param_list = (FieldListPtr)malloc(sizeof(struct FieldList));
+    write_func->param_list->name = "out_num";
+    write_func->param_list->type = ret_type;
+    write_func->param_list->tail = NULL;
+    write_func->lineno = 0;
+    write_func->define |= FUNC_DEFINED;
+    add_func(write_func,0);
+
+    return 1;
+}
 
 int add_func(struct FuncTable_t* entry, int lineno){
     struct FuncTable_t* func;

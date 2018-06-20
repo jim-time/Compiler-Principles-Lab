@@ -25,7 +25,8 @@ struct FuncTable_t{
 
 struct VarTable_t{
     TypePtr type;
-    char* name;     //key
+    char* name;     // key
+    char* alias;    // used by intercodes
     void* val_ptr;
     int level;
     struct VarTable_t* next;
@@ -56,7 +57,10 @@ int vartab_list_push(struct VarTable_t** start, struct VarTable_t** var);
 int vartab_list_pop(struct VarTable_t** start);
 
 int vartab_isEqual(struct VarTable_t** a, struct VarTable_t** b); //not define
+
+
 //function table
+int functab_create();
 int add_func(struct FuncTable_t* entry, int lineno);
 int find_func(char* name, struct FuncTable_t** entry);
 void print_functable();
