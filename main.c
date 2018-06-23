@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0){
-        pic = fopen("./Output/out.ir","w+");
+        pic = fopen("out.ir","w+");
         if(!pic){
             printf("Failed to open out.ir\n");
             return 0;
