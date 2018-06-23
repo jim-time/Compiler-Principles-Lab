@@ -54,12 +54,13 @@ int List_PushBack(ListPtr list, ListNodePtr node){
     return 1;
 }
 
-int List_Pop(ListPtr list){
+ListNodePtr List_Pop(ListPtr list){
+    ListNodePtr ptail;
     if(list->trailer->prev->prev){
-        ListNodePtr ptail = list->trailer->prev;
+        ptail = list->trailer->prev;
         list->trailer->prev->prev->succ = list->trailer;
         list->trailer->prev = list->trailer->prev->prev;
-        free(ptail);
+        //free(ptail);
     }
-    return 1;
+    return ptail;
 }

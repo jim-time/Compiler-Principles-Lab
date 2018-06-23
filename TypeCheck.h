@@ -8,7 +8,6 @@
 
 typedef struct TypeItem_t TypeTable_t;
 typedef TypeTable_t TypeTable;
-struct FieldList;
 
 typedef struct TypeItem_t* TypePtr;
 typedef struct TypeItem_t** TypeListPtr;

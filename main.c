@@ -17,6 +17,8 @@ extern int yyparse (void);
 extern int yydebug;
 
 FILE *pscanner;
+FILE* pic = NULL;
+
 struct SyntaxTreeNode* root;
 int error_hint = 0;
 int main(int argc, char** argv) {
@@ -42,7 +44,6 @@ int main(int argc, char** argv) {
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0){
-        FILE* pic;
         pic = fopen("./Output/out.ir","w+");
         if(!pic){
             printf("Failed to open out.ir\n");

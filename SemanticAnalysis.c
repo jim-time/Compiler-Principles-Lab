@@ -9,6 +9,7 @@ uint16_t hierarchy = 0;
  * 
  *
 **/  
+extern FILE* pic;
 int ST_Program(struct SyntaxTreeNode* Program){                             // Program -> ExtDefList
     //create a type table & symbol table
     tt_create();
@@ -23,9 +24,11 @@ int ST_Program(struct SyntaxTreeNode* Program){                             // P
         print_typetable();
         print_vartable();
         print_functable();
-
-        print_intercodes();
+    #else
+        pic = stdout;
     #endif
+    print_intercodes(pic);
+
     return 1;
 }
 
@@ -383,7 +386,7 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
         local_cnt = 0;
         temp_cnt = 0;
         // generate intercodes on function declaration
-        translate_func(func);
+        translate_func_dec(func);
     }
     // CompSt -> LC DefList StmtList RC
     if(ST_DefList(CompSt->children[1],&l_vars)){
@@ -454,43 +457,90 @@ int ST_Stmt(struct SyntaxTreeNode* Stmt,FuncTablePtr func){
                 printf("Error type %d at line %d: Type mismatched for return\n",MISMATCHED_RETURN,Stmt->children[1]->lineno);
             }
         }
+        // generate intercodes for return statement
+        translate_return(exp_val);
     }else if(Stmt->n_children == 5){
         if(!strcmp(Stmt->node_name,"IF")){                                 // Stmt -> IF LP Exp RP Stmt
-            if(ST_Exp(Stmt->children[2],&exp_val)){
+            // activate the condition flag
+            condition_flag = 1;
+            int true_cnt,false_cnt;
+            true_cnt = label_cnt++;
+            false_cnt = label_cnt++;
+            //if(ST_Exp(Stmt->children[2],&exp_val)){
+            if(translate_cond(Stmt->children[2],&exp_val,true_cnt,false_cnt)){
                 //type check
                 if(!(exp_val->type->kind == BASIC && exp_val->type->info.basic == BASIC_INT)){
                     printf("Error type %d at line %d: Statement requires expression of integer type\n",NOT_INT,Stmt->children[2]->lineno);
                 }
+                // generate true Label
+                translate_label('t',true_cnt);
                 if(ST_Stmt(Stmt->children[4],func)){
-
+                    // generate next Label
+                    translate_label('f',false_cnt);
                 }
             }
+            //deactivate the condition flag
+            condition_flag = 0;
         }else{                                                             // Stmt -> WHILE LP Exp RP Stmt
-            ST_Exp(Stmt->children[2],&exp_val);
+            // activate the condition flag
+            condition_flag = 1;
+            int true_cnt,false_cnt,next_cnt;
+            true_cnt = label_cnt++;
+            false_cnt = label_cnt++;
+            next_cnt = label_cnt++;
+            // generate next Label
+            translate_label('n',next_cnt);
+
+            //ST_Exp(Stmt->children[2],&exp_val);
+            translate_cond(Stmt->children[2],&exp_val,true_cnt,false_cnt);
             //type check
             if(exp_val){
                 if(exp_val->type->kind != BASIC || exp_val->type->info.basic != BASIC_INT){
                     printf("Error type %d at line %d: Statement requires expression of integer type\n",NOT_INT,Stmt->children[2]->lineno);
                 }
             }
+            // generate true Label
+            translate_label('t',true_cnt);
+
             if(ST_Stmt(Stmt->children[4],func)){
-                
+                // goto the while loop
+                translate_goto(next_cnt);
+                // if false, it goes to the false_label
+                translate_label('f',false_cnt);
             }
+            //deactivate the condition flag
+            condition_flag = 0;
         }
     }else if(Stmt->n_children == 7){                                       // Stmt -> IF LP Exp RP Stmt ELSE Stmt
-        ST_Exp(Stmt->children[2],&exp_val);
+        // activate the condition flag
+        condition_flag = 1;
+        int true_cnt,false_cnt,next_cnt;
+        true_cnt = label_cnt++;
+        false_cnt = label_cnt++;
+        next_cnt = label_cnt++;
+        //ST_Exp(Stmt->children[2],&exp_val);
+        translate_cond(Stmt->children[2],&exp_val,true_cnt,false_cnt);
         //type check
         if(exp_val){
             if(!(exp_val->type->kind == BASIC && exp_val->type->info.basic == BASIC_INT)){
                 printf("Error type %d at line %d: Statement requires expression of integer type\n",NOT_INT,Stmt->children[2]->lineno);
             }
         }
+        // generate true label
+        translate_label('t',true_cnt);
+        
         if(ST_Stmt(Stmt->children[4],func)){
-
+            // and then goto the next
+            translate_goto(next_cnt);
+            // othewise, goto the false
+            translate_label('f',false_cnt);
             if(ST_Stmt(Stmt->children[6],func)){                             //else Stmt
-
+                // the next
+                translate_label('n',next_cnt);
             }
         }
+        //deactivate the condition flag
+        condition_flag = 0;
     }
     return 1;
 }
@@ -589,6 +639,7 @@ int ST_Dec(struct SyntaxTreeNode* Dec,TypePtr field_type,FieldListPtr* ret_field
             printf("Error type %d at line %d: Redefined Variable \"%s\"\n",REDEFINED_VAR,Dec->lineno,(*ret_field)->name);
             return 0;
         }
+
         // check the type
         if((*ret_field)->type->kind != exp_val->type->kind){
             printf("Error type %d at line %d: Type mismatched for assignment around \"%s\"\n",MISMATCHED_ASSIGNMENT,Dec->children[0]->lineno,(*ret_field)->name);
@@ -596,10 +647,14 @@ int ST_Dec(struct SyntaxTreeNode* Dec,TypePtr field_type,FieldListPtr* ret_field
             if((*ret_field)->type->kind == BASIC){
                 if((*ret_field)->type->info.basic != exp_val->type->info.basic){
                     printf("Error type %d at line %d: Type mismatched for assignment around \"%s\"\n",MISMATCHED_ASSIGNMENT,Dec->children[0]->lineno,(*ret_field)->name);
-                }else{
-
                 }
             }
+            // update the alias
+            VarTablePtr var;
+            find_var((*ret_field)->name,&var);
+            (*ret_field)->alias = var->alias;
+            // generate intercodes for assignment
+            translate_assign((*ret_field),exp_val);
         }
     }
     return 1;
@@ -610,7 +665,7 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
     if(Exp->n_children == 3){
         if(!strcmp(Exp->children[1]->node_name,"ASSIGNOP")){                // Exp : Exp ASSIGNOP Exp
             return ST_ASSIGNOP(Exp->children[0],Exp->children[2],ret_val);
-        }else if(!strcmp(Exp->children[1]->node_name,"AND")){               // Exp : EExpxp AND Exp
+        }else if(!strcmp(Exp->children[1]->node_name,"AND")){               // Exp : Exp AND Exp
             return ST_2OP_Logic(Exp->children[0],Exp->children[1],Exp->children[2],ret_val);
         }else if(!strcmp(Exp->children[1]->node_name,"OR")){                // Exp : Exp OR Exp
             return ST_2OP_Logic(Exp->children[0],Exp->children[1],Exp->children[2],ret_val);
@@ -632,34 +687,15 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             ST_StructField(Exp->children[0],Exp->children[2],ret_val);
         }
     }else if(Exp->n_children == 2){
-        if(!strcmp(Exp->children[0]->node_name,"MINUS")){                   // Exp : MINUS Exp
-            //FieldListPtr minus_exp;
-            if(ST_Exp(Exp->children[1],ret_val)){
-                if((*ret_val)->type->kind == BASIC){
-
-                }else{
-                    printf("Error type %d at line %d: The Exp is not an integer or float \"%s\"\n",NOT_BASIC,Exp->children[1]->lineno,Exp->children[1]->node_name);
-                    (*ret_val)->val_ptr = NULL;
-                    return 0;
-                }
-            }
-        }else if(!strcmp(Exp->children[0]->node_name,"NOT")){               // Exp : NOT Exp 
-            //FieldListPtr not_exp;
-            if(ST_Exp(Exp->children[1],ret_val)){
-                //(*ret_val) = not_exp;
-                if((*ret_val)->type->kind == BASIC && (*ret_val)->type->info.basic == BASIC_INT){
-
-                }else{
-                    printf("Error type %d at line %d: The Exp is not an integer \"%s\"\n",NOT_INT,Exp->children[1]->lineno,Exp->children[1]->node_name);
-                    (*ret_val)->val_ptr = NULL;
-                    return 0;
-                }
-            }
-        }
+        // Exp : MINUS Exp 
+        // Exp : NOT Exp
+        return ST_1OP_Logic(Exp->children[0],Exp->children[1],ret_val);
     }else if(Exp->n_children == 4){
-        if(!strcmp(Exp->children[0]->node_name,"ID")){                      // Exp : ID LP Args RP
+        if(!strcmp(Exp->children[0]->node_name,"ID")){                      
+            // Exp : ID LP Args RP
             return ST_CallFunc(Exp->children[0], Exp->children[2], ret_val);
-        }else if(!strcmp(Exp->children[0]->node_name,"Exp")){               // Exp : Exp LB Exp RB
+        }else if(!strcmp(Exp->children[0]->node_name,"Exp")){               
+            // Exp : Exp LB Exp RB
             return ST_Array(Exp->children[0],Exp->children[2],ret_val);
         }
     }else if(Exp->n_children == 1){
@@ -754,11 +790,10 @@ int ST_ASSIGNOP(struct SyntaxTreeNode* LVal,struct SyntaxTreeNode* RVal, FieldLi
                     if(lval->type->kind == BASIC){
                         if(lval->type->info.basic != rval->type->info.basic){
                             printf("Error type %d at line %d: Type mismatched for assignment\n",MISMATCHED_ASSIGNMENT,LVal->lineno);
-                        }else{
-                            // create the intercodes here
-
                         }
                     }
+                    // generate the intercodes for assignment
+                    translate_assign(lval,rval);
                 }
                 (*ret_val) = lval;
             }else{
@@ -908,6 +943,9 @@ int ST_StructField(struct SyntaxTreeNode* Exp, struct SyntaxTreeNode* ID, FieldL
     return 1;
 }
 
+//  +---------+------+------+---+------+
+//  |func_name|args 0|args 1|...|args n|
+//  +---------+------+------+---+------+
 int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, FieldListPtr* ret_val){
     (*ret_val) = (FieldListPtr)malloc(sizeof(struct FieldList));
     FuncTablePtr func;
@@ -948,8 +986,11 @@ int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, Fie
             printf(")\" is not applicable for arguments \"%s()",func_id->data.string_value);
             (*ret_val)->val_ptr = NULL;
             return 0;
-        }
+        }else{
+            // generate intercodes for call of function
+            translate_func_call(func,*ret_val);
             return 1;
+        }
     }
     // Exp -> ID LP Args RP
     FieldListPtr ref_args;
@@ -963,8 +1004,12 @@ int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, Fie
         ref_func->param_list = ref_args;
         
         if(isFuncEqual(func,ref_func)){
-            //call func
-            //(*ret_val)->val_prt = xxx;
+            //  generate intercodes for call func
+            //  +---------+------+------+---+------+
+            //  |func_name|args 0|args 1|...|args n|
+            //  +---------+------+------+---+------+
+            (*ret_val)->tail = ref_args;
+            translate_func_call(func,*ret_val);
         }else{
             printf("Error type %d at line %d: Function \"%s(",ERR_FUNC_ARGS,func_id->lineno,func->name);
             print_param(func->param_list);
@@ -1007,6 +1052,20 @@ int ST_Arithmetic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, st
     if(opa->type->info.basic == opb->type->info.basic){    // Success
         (*ret_val) = opa;
         //opa +-*/ opb
+        // generate the intercodes for arithmetic operation
+        char op_name;
+        switch(operation->node_name[0]){
+            // "PLUS"
+            case 'P': op_name = '+'; break;
+            // "MINUS"
+            case 'M': op_name = '-'; break;
+            // "STAR"
+            case 'S': op_name = '*'; break;
+            // "DIV"
+            case 'D': op_name = '/'; break;
+            default: op_name = ' '; break; 
+        }
+        translate_arithmetic(opa,op_name,opb);
         return 1;
     }else{
         if(opb->name)
@@ -1017,9 +1076,15 @@ int ST_Arithmetic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, st
         return 0;
     }
 }
-
+// Exp -> Exp AND Exp
 int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, struct SyntaxTreeNode* b, FieldListPtr* ret_val){
     FieldListPtr opa, opb;
+    int and_cond, or_cond, bool_cond;
+ 
+    and_cond = !strcmp(operation->node_name,"AND");
+    or_cond = !strcmp(operation->node_name,"OR");
+    bool_cond =  and_cond || or_cond;
+
     ST_Exp(a,&opa);
     if(!opa)
         return 0;
@@ -1041,10 +1106,12 @@ int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, str
         (*ret_val) = opa;
         return 0;
     }
-    if(!strcmp(operation->node_name,"AND") || !strcmp(operation->node_name,"OR")){  //opa && ||  opb
+    if(bool_cond){  //opa && ||  opb
         if(opa->type->info.basic == BASIC_INT){                                     // Success
             if(opb->type->info.basic == BASIC_INT){
                 (*ret_val) = opa;
+               // generate intercodes
+               translate_logic(a->parent,ret_val);
                 return 1;
             }else{
                 if(opb->name)
@@ -1065,12 +1132,8 @@ int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, str
     }else{  //opa > < >= <= == != opb
         if(opa->type->info.basic == opb->type->info.basic){    // Success
             (*ret_val) = opa;
-            /*(*ret_val) = (FieldListPtr)malloc(sizeof(struct FieldList));
-            memcpy((*ret_val),opa,sizeof(struct FieldList));
-            (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN * sizeof(char));
-            sprintf((*ret_val)->name,"%s %s %s",opa->name,operation->data.string_value,opb->name);
-            (*ret_val)->type->info.basic = BASIC_INT;*/
-            //opa +-*/ opb
+            // generate intercodes
+            translate_logic(a->parent,ret_val);
             return 1;
         }else{
             if(opb->name)
@@ -1082,4 +1145,40 @@ int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, str
         }
     }
     
+}
+
+int ST_1OP_Logic(struct SyntaxTreeNode* operation, struct SyntaxTreeNode* a, FieldListPtr* ret_val){
+    if(!strcmp(operation->node_name,"MINUS")){                   // Exp : MINUS Exp
+        //FieldListPtr minus_exp;
+        if(ST_Exp(a,ret_val)){
+            if((*ret_val)->type->kind == BASIC){
+                // generate intercodes for minus exp
+                // code = 0 - exp
+                struct FieldList zero;
+                int o = 0;
+                zero.alias = "int";
+                zero.val_ptr = (void*)(&o);
+                translate_arithmetic(&zero,'-',(*ret_val));
+                // return the result to ret_val
+                (*ret_val)->alias = zero.alias;
+            }else{
+                printf("Error type %d at line %d: The Exp is not an integer or float \"%s\"\n",NOT_BASIC,a->lineno,a->node_name);
+                (*ret_val)->val_ptr = NULL;
+                return 0;
+            }
+        }
+    }else if(!strcmp(operation->node_name,"NOT")){               // Exp : NOT Exp 
+        if(ST_Exp(a,ret_val)){
+            //(*ret_val) = not_exp;
+            if((*ret_val)->type->kind == BASIC && (*ret_val)->type->info.basic == BASIC_INT){
+                // generate intercodes for not operation
+               translate_logic(a->parent,ret_val);
+            }else{
+                printf("Error type %d at line %d: The Exp is not an integer \"%s\"\n",NOT_INT,a->lineno,a->node_name);
+                (*ret_val)->val_ptr = NULL;
+                return 0;
+            }
+        }
+    }
+    return 1;
 }

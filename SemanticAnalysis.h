@@ -42,5 +42,5 @@ int ST_StructField(struct SyntaxTreeNode* Exp, struct SyntaxTreeNode* ID, FieldL
 int ST_CallFunc(struct SyntaxTreeNode* func_id, struct SyntaxTreeNode* args, FieldListPtr* ret_val);
 int ST_Arithmetic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, struct SyntaxTreeNode* b, FieldListPtr* ret_val);
 int ST_2OP_Logic(struct SyntaxTreeNode* a, struct SyntaxTreeNode* operation, struct SyntaxTreeNode* b, FieldListPtr* ret_val);
-
+int ST_1OP_Logic(struct SyntaxTreeNode* operation, struct SyntaxTreeNode* a, FieldListPtr* ret_val);
 #endif

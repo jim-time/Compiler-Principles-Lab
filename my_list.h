@@ -19,7 +19,7 @@ struct List_t{
     int (*ins_yx)(ListPtr list, ListNodePtr nodex,ListNodePtr nodey);
     int (*del)(ListPtr list, ListNodePtr node);
     int (*push_back)(ListPtr list, ListNodePtr node);
-    int (*pop)(ListPtr list);
+    ListNodePtr (*pop)(ListPtr list);
 };
 
 int List_Create(ListPtr list);
@@ -28,7 +28,7 @@ int List_Ins_XY(ListPtr list, ListNodePtr nodex,ListNodePtr nodey);
 int List_Ins_YX(ListPtr list, ListNodePtr nodex,ListNodePtr nodey);
 int List_Del(ListPtr list, ListNodePtr node);
 int List_PushBack(ListPtr list, ListNodePtr node);
-int List_Pop(ListPtr list);
+ListNodePtr List_Pop(ListPtr list);
 
 
 #endif
