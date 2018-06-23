@@ -2,6 +2,28 @@
 #define __INTERMEDIATECODE_H_
 #include "main.h"
 
+// external definition
+// SyntaxTree.h
+struct SyntaxTreeNode;
+
+// SymbolTabel.h
+struct FuncTable_t;
+struct VarTable_t;
+typedef struct FuncTable_t* FuncTablePtr;
+typedef struct VarTable_t* VarTablePtr;
+
+// typecheck.h
+struct TypeItem_t;
+struct FieldList;
+typedef struct TypeItem_t TypeTable_t;
+typedef TypeTable_t TypeTable;
+
+typedef struct TypeItem_t* TypePtr;
+typedef struct TypeItem_t** TypeListPtr;
+typedef struct FieldList* FieldListPtr; 
+
+// internal defintion
+
 typedef struct Operand_t Operand;
 typedef struct InterCode_t InterCode;
 typedef struct InterCodeListNode_t InterCodeListNode;
@@ -24,7 +46,7 @@ struct Operand_t {
 };
 
 struct InterCode_t{
-    enum { ASSIGN, ADD, SUB, MUL,DIV,LABEL,FUNCTION,GOTO,COND,RET,DEC,ARG,CALL,PARAM,READ,WRITE} kind;
+    enum { ASSIGN, ADD, SUB, MUL,DIVISION,LABEL,FUNCTION,GOTO,COND,RET,DEC,ARG,CALL,PARAM,READ,WRITE} kind;
     union {
         struct { OperandPtr right, left; } assign;
         struct { OperandPtr result, op1, op2; } binop;

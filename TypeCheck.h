@@ -1,6 +1,19 @@
 #ifndef __TYPECHECK_H_
 #define __TYPECHECK_H_
+//#include "main.h"
 #include "uthash/include/uthash.h"
+
+// external definition
+// SymbolTabel.h
+struct FuncTable_t;
+struct VarTable_t;
+typedef struct FuncTable_t* FuncTablePtr;
+typedef struct VarTable_t* VarTablePtr;
+
+// IntermediateCode.h
+struct Operand_t;
+typedef struct Operand_t Operand;
+typedef Operand* OperandPtr;
 
 #define TYPE_DECLARED 0x1
 #define TYPE_DEFINED  0x2 
@@ -40,7 +53,7 @@ struct TypeItem_t
 struct FieldList
 {
     char* name; // name of the field
-    char* alias;
+    OperandPtr alias;
     TypePtr type; // type of field
     void* val_ptr;  //value
     int lineno;

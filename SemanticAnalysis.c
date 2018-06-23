@@ -28,6 +28,7 @@ int ST_Program(struct SyntaxTreeNode* Program){                             // P
         pic = stdout;
     #endif
     optimization_intercodes();
+    //print_intercodes(stdout);
     print_intercodes(pic);
 
     return 1;
@@ -384,7 +385,7 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
             }
         }
         // enter the function  and clear the cnt for local variable
-        local_cnt = 1;
+        //local_cnt = 1;
         temp_cnt = 1;
         // generate intercodes on function declaration
         translate_func_dec(func);
@@ -703,6 +704,7 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             (*ret_val)->type = var->type;
             (*ret_val)->val_ptr = var->val_ptr;
             (*ret_val)->name = var->name;
+
             (*ret_val)->alias = var->alias;
             return 1;
         }else if(!strcmp(Exp->children[0]->node_name,"INT")){               // Exp : INT
@@ -713,8 +715,11 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             free(tp);
             (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
             sprintf((*ret_val)->name,"%d",Exp->children[0]->data.int_value);
-            (*ret_val)->alias = "int";
             (*ret_val)->val_ptr = (void*)&(Exp->children[0]->data.int_value);
+
+            (*ret_val)->alias = (OperandPtr)malloc(sizeof(Operand));
+            (*ret_val)->alias->kind = CONSTANT_INT;
+            (*ret_val)->alias->info.int_val = Exp->children[0]->data.int_value;
             return 1;
         }else if(!strcmp(Exp->children[0]->node_name,"FLOAT")){             // Exp : FLOAT
             (*ret_val) = (FieldListPtr)malloc(sizeof(struct FieldList));
@@ -724,8 +729,11 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
             free(tp);
             (*ret_val)->name = (char*)malloc(TYPE_NAME_LEN*sizeof(char));
             sprintf((*ret_val)->name,"%f",Exp->children[0]->data.float_value);
-            (*ret_val)->alias = "float";
             (*ret_val)->val_ptr = (void*)&(Exp->children[0]->data.float_value);
+
+            (*ret_val)->alias = (OperandPtr)malloc(sizeof(Operand));
+            (*ret_val)->alias->kind = CONSTANT_FLOAT;
+            (*ret_val)->alias->info.float_val = Exp->children[0]->data.float_value;
             return 1;
         }
     }
@@ -734,11 +742,8 @@ int ST_Exp(struct SyntaxTreeNode* Exp,FieldListPtr* ret_val){
 
 int ST_Args(struct SyntaxTreeNode* Args, FieldListPtr* ret_args){                                   
     struct SyntaxTreeNode* pArgs = Args;
-    /*if(!strcmp(Args->parent->node_name,"Args")){
-        *ret_val = (ExpValPtr)malloc(sizeof(struct ExpVal));
-    }*/
+
     FieldListPtr* val = ret_args;
-    //ExpValPtr *exp;
     for(;pArgs->n_children == 3;pArgs = pArgs->children[2]){                // Args -> Exp COMMA Args
         if(ST_Exp(pArgs->children[0],val)){
             val = &((*val)->tail);
@@ -1145,8 +1150,9 @@ int ST_1OP_Logic(struct SyntaxTreeNode* operation, struct SyntaxTreeNode* a, Fie
                 // code = 0 - exp
                 struct FieldList zero;
                 int o = 0;
-                zero.alias = "int";
-                zero.val_ptr = (void*)(&o);
+                zero.alias = (OperandPtr)malloc(sizeof(Operand));
+                zero.alias->kind = CONSTANT_INT;
+                zero.alias->info.int_val = 0;
                 translate_arithmetic(&zero,'-',(*ret_val));
                 // return the result to ret_val
                 (*ret_val)->alias = zero.alias;

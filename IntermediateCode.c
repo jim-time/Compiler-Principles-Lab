@@ -1,4 +1,5 @@
 #include "main.h"
+#define VAR_NAME_LEN 10
 int local_cnt = 1;
 int temp_cnt = 1;
 
@@ -38,11 +39,12 @@ int translate_func_dec(FuncTablePtr func){
                 printf("Not found the param in vartable\n");
                 return 0;
             }
-            param_var->alias = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-            sprintf(param_var->alias,"v%d",local_cnt++);
-            param_code->code.info.param.x = param_var->alias;   //it must be a form like: letternum
+            param_var->alias = (OperandPtr)malloc(sizeof(Operand));
+            param_var->alias->kind = VARIABLE;
+            param_var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+            sprintf(param_var->alias->info.var_name,"v%d",local_cnt++);
+            param_code->code.info.param.x = param_var->alias->info.var_name;   //it must be a form like: letternum
             intercodes.push_back(&intercodes,param_code);
-
         }
     }
     return 1;
@@ -53,18 +55,19 @@ int translate_globalvar(char* var_name){
     static int nr_globalvar = 0;
     find_var(var_name,&var);
     if(var){
-        var->alias = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-        sprintf(var->alias,"g%d",nr_globalvar++);
+        var->alias =  (OperandPtr)malloc(sizeof(Operand));
+        var->alias->kind = VARIABLE;
+        var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+        sprintf(var->alias->info.var_name,"g%d",nr_globalvar++);
         //create the allocation code
         if(var->type->kind == BASIC){
             
         }else if(var->type->kind == ARRAY){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-            OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
-            x->kind = VARIABLE;
-            x->info.var_name = var->alias;
+            OperandPtr x = var->alias;
 
             // compute the size of array
+            // DEC tn size
             TypePtr parr = var->type;
             int arr_size = 1;
             for(;parr->kind == ARRAY; parr = parr->info.array.elem){
@@ -82,17 +85,19 @@ int translate_globalvar(char* var_name){
             // tn = &tn
             InterCodeListNodePtr addr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             addr_code->code.kind = ASSIGN;
-            addr_code->code.info.assign.left = x;
+            
             addr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             addr_code->code.info.assign.right->kind = ADDRESS;
-            addr_code->code.info.assign.right->info.var_name = var->alias;
+            addr_code->code.info.assign.right->info.var_name = var->alias->info.var_name;
+
+            var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+            sprintf(var->alias->info.var_name,"g%d",nr_globalvar++);
+            addr_code->code.info.assign.left = var->alias;
             intercodes.push_back(&intercodes,addr_code);
         }else if(var->type->kind == STRUCTURE){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             
-            OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
-            x->kind = VARIABLE;
-            x->info.var_name = var->alias;
+            OperandPtr x = var->alias;
 
             dec_code->code.kind = DEC;
             dec_code->code.info.dec.x = x;
@@ -107,7 +112,7 @@ int translate_globalvar(char* var_name){
             addr_code->code.info.assign.left = x;
             addr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             addr_code->code.info.assign.right->kind = ADDRESS;
-            addr_code->code.info.assign.right->info.var_name = var->alias;
+            addr_code->code.info.assign.right->info.var_name = var->alias->info.var_name;
             intercodes.push_back(&intercodes,addr_code);
         }  
     }
@@ -116,19 +121,18 @@ int translate_globalvar(char* var_name){
 
 int translate_localvar(char* var_name){
     VarTablePtr var;
-    static int nr_globalvar = 0;
     find_var(var_name,&var);
     if(var){
-        var->alias = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-        sprintf(var->alias,"v%d",local_cnt++);
+        var->alias = (OperandPtr)malloc(sizeof(Operand));
+        var->alias->kind = VARIABLE;
+        var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+        sprintf(var->alias->info.var_name,"v%d",local_cnt++);
         //create the allocation code
         if(var->type->kind == BASIC){
             
         }else if(var->type->kind == ARRAY){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-            OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
-            x->kind = VARIABLE;
-            x->info.var_name = var->alias;
+            OperandPtr x = var->alias;
 
             // compute the size of array
             TypePtr parr = var->type;
@@ -148,17 +152,19 @@ int translate_localvar(char* var_name){
             // tn = &tn
             InterCodeListNodePtr addr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             addr_code->code.kind = ASSIGN;
-            addr_code->code.info.assign.left = x;
+
             addr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             addr_code->code.info.assign.right->kind = ADDRESS;
-            addr_code->code.info.assign.right->info.var_name = var->alias;
+            addr_code->code.info.assign.right->info.var_name = var->alias->info.var_name;
+
+            var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+            sprintf(var->alias->info.var_name,"v%d",local_cnt++);
+            addr_code->code.info.assign.left = var->alias;
             intercodes.push_back(&intercodes,addr_code);
         }else if(var->type->kind == STRUCTURE){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             
-            OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
-            x->kind = VARIABLE;
-            x->info.var_name = var->alias;
+            OperandPtr x = var->alias;
 
             dec_code->code.kind = DEC;
             dec_code->code.info.dec.x = x;
@@ -173,7 +179,7 @@ int translate_localvar(char* var_name){
             addr_code->code.info.assign.left = x;
             addr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             addr_code->code.info.assign.right->kind = ADDRESS;
-            addr_code->code.info.assign.right->info.var_name = var->alias;
+            addr_code->code.info.assign.right->info.var_name = var->alias->info.var_name;
             intercodes.push_back(&intercodes,addr_code);
         }  
     }
@@ -187,67 +193,96 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
     InterCodeListNodePtr arr_code,sum_code,index_code;
 
     // initialize operands
-    OperandPtr ret,result,op1,op2;
+    OperandPtr result,op1,op2;
+    OperandPtr sum;
     OperandPtr left;
-    ret = (OperandPtr)malloc(sizeof(Operand));
-    result = (OperandPtr)malloc(sizeof(Operand));
+    sum = (OperandPtr)malloc(sizeof(Operand));
+    
 
-
-    // complete the result
-    result->kind = VARIABLE;
-    result->info.var_name = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-    sprintf(result->info.var_name,"t%d",temp_cnt++);
-
+    char* index_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+    sprintf(index_name,"t%d",temp_cnt++);
+    char* sum_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+    sprintf(sum_name,"t%d",temp_cnt++);
+    
     // get the index to access the array
     int dim = 0;
     for(parr = (*arr)->type;parr->kind == ARRAY && pref;parr = parr->info.array.elem, pref = pref->tail){
         // complete the ref_index
-        op1 = (OperandPtr)malloc(sizeof(Operand));
+        //op1 = (OperandPtr)malloc(sizeof(Operand));
+        op1 = pref->alias;
         op2 = (OperandPtr)malloc(sizeof(Operand));
 
-        if(!strcmp(pref->alias,"int")){
-            op1->kind = CONSTANT_INT;
-            op1->info.int_val = *(int*)pref->val_ptr;
-        }else{
-            op1->kind = VARIABLE;
-            op1->info.var_name = pref->alias;
-        }
         // complete the arr_index
         op2->kind = CONSTANT_INT;
         op2->info.int_val = parr->info.array.index;
-
+        
         sum_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));      
         if(dim == 0){  
             // generate code:  
             // sum = ref_index * arr_index (optimization)
-            ret->kind = VARIABLE;
-            ret->info.var_name =  (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-            sprintf(ret->info.var_name,"t%d",temp_cnt++);
+            if(op1->kind == CONSTANT_INT){
+                sum->kind = CONSTANT_INT;
+                sum->info.int_val = op1->info.int_val * op2->info.int_val;
+            }else{
+                sum->kind = op1->kind;
+                sum->info.var_name = op1->info.var_name;
+            }
+            // sum->info.var_name =  (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
+            // sprintf(sum->info.var_name,"t%d",temp_cnt++);
 
-            sum_code->code.kind = MUL;
-            sum_code->code.info.binop.result = ret;
-            sum_code->code.info.binop.op1 = op1;
-            sum_code->code.info.binop.op2 = op2;
-            intercodes.push_back(&intercodes,sum_code);
+            // sum_code->code.kind = MUL;
+            // sum_code->code.info.binop.result = ret;
+            // sum_code->code.info.binop.op1 = op1;
+            // sum_code->code.info.binop.op2 = op2;
+            // intercodes.push_back(&intercodes,sum_code);
             dim++;
         }else{  
             // generate code: 
             // index = ref_index * arr_index
-            index_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-            index_code->code.kind = MUL;
-            index_code->code.info.binop.result = result;
-            index_code->code.info.binop.op1 = op1;
-            index_code->code.info.binop.op2 = op2;
-            intercodes.push_back(&intercodes,index_code);
-
+            if(op1->kind == CONSTANT_INT){
+                result = (OperandPtr)malloc(sizeof(Operand));
+                result->kind = CONSTANT_INT;
+                result->info.int_val = op1->info.int_val * op2->info.int_val;
+            }else{
+                result = (OperandPtr)malloc(sizeof(Operand));
+                result->kind = VARIABLE;
+                result->info.var_name = index_name; 
+                index_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+                index_code->code.kind = MUL;
+                index_code->code.info.binop.result = result;
+                index_code->code.info.binop.op1 = op1;
+                index_code->code.info.binop.op2 = op2;
+                intercodes.push_back(&intercodes,index_code);
+            }
             // generate code:
             // sum = sum + index  (tn = tn + tn+1)
-            sum_code->code.kind = ADD;
-            sum_code->code.info.binop.result = ret;
-            sum_code->code.info.binop.op1 = ret;
-            sum_code->code.info.binop.op2 = result;
-            intercodes.push_back(&intercodes,sum_code);
+            if(sum->kind == CONSTANT_INT){
+                if(result->kind == CONSTANT_INT){
+                    sum->info.int_val = sum->info.int_val + result->info.int_val;
+                }else{
+                    sum_code->code.kind = ADD;
+                    sum_code->code.info.binop.op1 = sum;
+                    sum_code->code.info.binop.op2 = result;
 
+                    sum = (OperandPtr)malloc(sizeof(Operand));
+                    sum->kind = VARIABLE;
+                    sum->info.var_name = sum_name;
+                    sum_code->code.info.binop.result = sum;
+                    intercodes.push_back(&intercodes,sum_code);
+                }
+            }else{
+                sum_code->code.kind = ADD;
+                sum_code->code.info.binop.op1 = sum;
+                sum_code->code.info.binop.op2 = result;
+
+                if(sum->kind != VARIABLE){
+                    sum = (OperandPtr)malloc(sizeof(OperandPtr));
+                    sum->kind = VARIABLE;
+                }
+                sum->info.var_name = sum_name;
+                sum_code->code.info.binop.result = sum;
+                intercodes.push_back(&intercodes,sum_code);
+            }
             dim++;
         }
     }
@@ -256,7 +291,7 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
     if(parr->kind == ARRAY){
         printf("Error type %d at line %d: array type \"%s\" is not applicable for your reference\n",NOT_ARRAY,ArrBase->lineno,(*arr)->type->name);
         // return tn
-        (*ref_arr_base)->alias = ret->info.var_name;
+        (*ref_arr_base)->alias = sum;
         //temp_cnt = old_cnt;
         return 0;
     }else{
@@ -266,52 +301,108 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
            sum = *sum               (tn = *tn)
         */
 
-        // tn = tn * elem_size 
-        sum_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));     
-        sum_code->code.kind = MUL;
-        sum_code->code.info.binop.result = ret;
-        sum_code->code.info.binop.op1 = ret;
-        op2 = (OperandPtr)malloc(sizeof(Operand));
-        op2->kind = CONSTANT_INT;
+       // get the elem_size
+        int elem_size;
         if((*ref_arr_base)->type->kind == BASIC)
-            op2->info.int_val = 4;
+            elem_size = 4;
         else{   // structure
-            op2->info.int_val = (*ref_arr_base)->type->info.structure.size;
+           elem_size = (*ref_arr_base)->type->info.structure.size;
         }
-        sum_code->code.info.binop.op2 = op2;
-        intercodes.push_back(&intercodes,sum_code);
+
+        // tn = tn * elem_size 
+        if(sum->kind == CONSTANT_INT){
+            sum->info.int_val = sum->info.int_val * elem_size;
+        }else{
+            sum_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));     
+            sum_code->code.kind = MUL;
+   
+            sum_code->code.info.binop.op1 = sum;
+
+            op2 = (OperandPtr)malloc(sizeof(Operand));
+            op2->kind = CONSTANT_INT;
+            op2->info.int_val = elem_size;
+            sum_code->code.info.binop.op2 = op2;
+
+            sum = (OperandPtr)malloc(sizeof(Operand));
+            sum->kind = VARIABLE;
+            sum->info.var_name = sum_name;
+            sum_code->code.info.binop.result = sum;
+
+            intercodes.push_back(&intercodes,sum_code);
+        }
+        
 
         // tn = tn + arr_base
-        arr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-        arr_code->code.kind = ADD;
-        arr_code->code.info.binop.result = ret;
-        arr_code->code.info.binop.op1 = ret;
-        op2 = (OperandPtr)malloc(sizeof(Operand));
-        op2->kind = VARIABLE;
-        op2->info.var_name = (*ref_arr_base)->alias;
-        arr_code->code.info.binop.op2 = op2;
-        intercodes.push_back(&intercodes,arr_code);
+        if(sum->kind == CONSTANT_INT){
+            arr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+            if(sum->info.int_val){
+                arr_code->code.kind = ADD;
+                arr_code->code.info.binop.op1 = sum;
+
+                op2 = (OperandPtr)malloc(sizeof(Operand));
+                op2->kind = VARIABLE;
+                op2->info.var_name = (*ref_arr_base)->alias->info.var_name;
+                arr_code->code.info.binop.op2 = op2;
+
+                sum = (OperandPtr)malloc(sizeof(Operand));
+                sum->kind = VARIABLE;
+                sum->info.var_name = sum_name;
+                arr_code->code.info.binop.result = sum;
+
+                intercodes.push_back(&intercodes,arr_code);
+            }else{
+                arr_code->code.kind = ASSIGN;
+                op2 = (OperandPtr)malloc(sizeof(Operand));
+                op2->kind = VARIABLE;
+                op2->info.var_name = (*ref_arr_base)->alias->info.var_name;
+                arr_code->code.info.assign.right = op2;
+
+                sum->kind = VARIABLE;
+                sum->info.var_name = sum_name;
+                arr_code->code.info.assign.left = sum;
+                intercodes.push_back(&intercodes,arr_code);
+            }
+        }else{
+            arr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+            arr_code->code.kind = ADD;
+            arr_code->code.info.binop.op1 = sum;
+
+            op2 = (OperandPtr)malloc(sizeof(Operand));
+            op2->kind = VARIABLE;
+            op2->info.var_name = (*ref_arr_base)->alias->info.var_name;
+            arr_code->code.info.binop.op2 = op2;
+
+            sum = (OperandPtr)malloc(sizeof(Operand));
+            sum->kind = VARIABLE;
+            sum->info.var_name = sum_name;
+            arr_code->code.info.binop.result = sum;
+            intercodes.push_back(&intercodes,arr_code);
+        }
+        
 
         // generate following intercodes when the type of element is BASIC
         // tn = *tn
         if((*ref_arr_base)->type->kind == BASIC){
-            arr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-            left = (OperandPtr)malloc(sizeof(Operand));
-            arr_code->code.kind = ASSIGN;
+            // arr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+            // left = (OperandPtr)malloc(sizeof(Operand));
+            // arr_code->code.kind = ASSIGN;
             
-            left->kind = VARIABLE;
-            left->info.var_name = (char*)malloc(sizeof(char)*10);
-            sprintf(left->info.var_name,"t%d",++temp_cnt);
+            // left->kind = VARIABLE;
+            // left->info.var_name = (char*)malloc(sizeof(char)*10);
+            // sprintf(left->info.var_name,"t%d",++temp_cnt);
 
-            arr_code->code.info.assign.left = left;
-            arr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
-            arr_code->code.info.assign.right->kind = REFERENCE;
-            arr_code->code.info.assign.right->info.var_name = ret->info.var_name;
-            intercodes.push_back(&intercodes,arr_code);
+            // arr_code->code.info.assign.left = left;
+            // arr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
+            // arr_code->code.info.assign.right->kind = REFERENCE;
+            // arr_code->code.info.assign.right->info.var_name = ret->info.var_name;
+            // intercodes.push_back(&intercodes,arr_code);
+            sum = (OperandPtr)malloc(sizeof(Operand));
+            sum->kind = REFERENCE;
+            sum->info.var_name = sum_name;
         }
     }
     // return tn
-    (*ref_arr_base)->alias = left->info.var_name;
+    (*ref_arr_base)->alias = sum;
     //temp_cnt = old_cnt+1;
     return 1;
 }
@@ -322,20 +413,21 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
     // tn = hdr + offset
     // tn = *tn
     OperandPtr result,op1,op2;
-
+    InterCodeListNodePtr field_code;
     // tn = hdr + offset
     if(offset){
-        InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+        field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
         result = (OperandPtr)malloc(sizeof(Operand));
-        op1 = (OperandPtr)malloc(sizeof(Operand));
+        //op1 = (OperandPtr)malloc(sizeof(Operand));
+        op1 = (*struct_hdr)->alias;
         op2 = (OperandPtr)malloc(sizeof(Operand));
 
         result->kind = VARIABLE;
         result->info.var_name = (char*)malloc(sizeof(char)*10);
         sprintf(result->info.var_name,"t%d",temp_cnt++);
 
-        op1->kind = VARIABLE;
-        op1->info.var_name = (*struct_hdr)->alias;
+        // op1->kind = VARIABLE;
+        // op1->info.var_name = (*struct_hdr)->alias;
     
         op2->kind = CONSTANT_INT;
         op2->info.int_val = offset;
@@ -374,64 +466,59 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
     // if the type of field is BASIC
     // tn = *tn
     if((*ref_field)->type->kind == BASIC){
-        InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-        op1 = (OperandPtr)malloc(sizeof(Operand));
-        op1->kind = REFERENCE;
-        if(offset)
-            op1->info.var_name = result->info.var_name;
-        else
-            op1->info.var_name = (*struct_hdr)->alias;
+        // InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+        // op1 = (OperandPtr)malloc(sizeof(Operand));
+        // op1->kind = REFERENCE;
+        // if(offset)
+        //     op1->info.var_name = result->info.var_name;
+        // else
+        //     op1->info.var_name = (*struct_hdr)->alias;
 
+        // result = (OperandPtr)malloc(sizeof(Operand));
+        // result->kind = VARIABLE;
+        // result->info.var_name = (char*)malloc(sizeof(char)*10);
+        // sprintf(result->info.var_name,"t%d",temp_cnt++);
+
+        // field_code->code.kind = ASSIGN;
+        // field_code->code.info.assign.left = result;
+        // field_code->code.info.assign.right = op1;
+        // intercodes.push_back(&intercodes,field_code);
         result = (OperandPtr)malloc(sizeof(Operand));
-        result->kind = VARIABLE;
-        result->info.var_name = (char*)malloc(sizeof(char)*10);
-        sprintf(result->info.var_name,"t%d",temp_cnt++);
-
-        field_code->code.kind = ASSIGN;
-        field_code->code.info.assign.left = result;
-        field_code->code.info.assign.right = op1;
-        intercodes.push_back(&intercodes,field_code);
+        result->kind = REFERENCE;
+        if(offset)
+            result->info.var_name = field_code->code.info.binop.result->info.var_name;
+        else
+            result->info.var_name = (*struct_hdr)->alias->info.var_name;
     }
 
     // return tn
-    (*ref_field)->alias = result->info.var_name;
+    (*ref_field)->alias = result;
     //temp_cnt = old_cnt + 1;
 
     return 1;
 }
 
 int translate_assign(FieldListPtr lval,FieldListPtr rval){
-    int old_cnt = temp_cnt++;
-
     // generate code for assignment:
     // lval = rval
-    if(strcmp(lval->alias,rval->alias)){
-        InterCodeListNodePtr assign_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-        OperandPtr left,right;
-        left = (OperandPtr)malloc(sizeof(Operand));
-        right = (OperandPtr)malloc(sizeof(Operand));
-
-        left->kind = VARIABLE;
-        left->info.var_name = lval->alias;
-
-        if(!strcmp(rval->alias,"int")){
-            right->kind = CONSTANT_INT;
-            right->info.int_val = *(int*)(rval->val_ptr);
-        }else if(!strcmp(rval->alias,"float")){
-            right->kind = CONSTANT_FLOAT;
-            right->info.float_val = *(int*)(rval->val_ptr);
-        }else{
-            right->kind = VARIABLE;
-            right->info.var_name = rval->alias;
+    // VARIABLE , REFERENCE
+    if(lval->alias->kind == rval->alias->kind){
+        if(!strcmp(lval->alias->info.var_name,rval->alias->info.var_name)){
+            return 1;
         }
-
-        assign_code->code.kind = ASSIGN;
-        assign_code->code.info.assign.left = left;
-        assign_code->code.info.assign.right = right;
-        intercodes.push_back(&intercodes,assign_code);
     }
+    InterCodeListNodePtr assign_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+    OperandPtr left,right;
+    // left = (OperandPtr)malloc(sizeof(Operand));
+    // right = (OperandPtr)malloc(sizeof(Operand));
 
-    temp_cnt = old_cnt;
+    left = lval->alias;
+    right = rval->alias;
+
+    assign_code->code.kind = ASSIGN;
+    assign_code->code.info.assign.left = left;
+    assign_code->code.info.assign.right = right;
+    intercodes.push_back(&intercodes,assign_code);
 
     return 1;
 }
@@ -451,32 +538,32 @@ int translate_arithmetic(FieldListPtr val1,char operation,FieldListPtr val2){
     sprintf(result->info.var_name,"t%d",old_cnt);
 
     // get the op1
-    if(!strcmp(val1->alias,"int")){
+    if(val1->alias->kind == CONSTANT_INT){
         op1->kind = CONSTANT_INT;
-        op1->info.int_val = *(int*)val1->val_ptr;
-    }else if(!strcmp(val1->alias,"float")){
+        op1->info.int_val = val1->alias->info.int_val;
+    }else if(val1->alias->kind == CONSTANT_FLOAT){
         op1->kind = CONSTANT_FLOAT;
-        op1->info.float_val = *(float*)val1->val_ptr;
+        op1->info.float_val = val1->alias->info.float_val;
     }else{
-        op1->kind = VARIABLE;
-        op1->info.var_name = val1->alias;
+        op1->kind = val1->alias->kind;
+        op1->info.var_name = val1->alias->info.var_name;
 
         // pass the left-val to the end
-        if(val1->alias[0] != 'v' && val1->alias[0] != 'g'){
+        if(val1->alias->info.var_name[0] != 'v' && val1->alias->info.var_name[0] != 'g'){
             free(result->info.var_name);
-            result->info.var_name = val1->alias;
+            result->info.var_name = val1->alias->info.var_name;
         }
     }
     // get the op2
-    if(!strcmp(val2->alias,"int")){
+    if(val2->alias->kind == CONSTANT_INT){
         op2->kind = CONSTANT_INT;
-        op2->info.int_val = *(int*)val2->val_ptr;
-    }else if(!strcmp(val2->alias,"float")){
+        op2->info.int_val = val2->alias->info.int_val;
+    }else if(val2->alias->kind == CONSTANT_FLOAT){
         op2->kind = CONSTANT_FLOAT;
-        op2->info.float_val = *(float*)val2->val_ptr;
+        op2->info.float_val = val2->alias->info.float_val;
     }else{
-        op2->kind = VARIABLE;
-        op2->info.var_name = val2->alias;
+        op2->kind = val2->alias->kind;
+        op2->info.var_name = val2->alias->info.var_name;
     }
 
     // generate intercodes:
@@ -485,7 +572,7 @@ int translate_arithmetic(FieldListPtr val1,char operation,FieldListPtr val2){
         case '+': binop_code->code.kind = ADD; break;
         case '-': binop_code->code.kind = SUB; break;
         case '*': binop_code->code.kind = MUL; break;
-        case '/': binop_code->code.kind = DIV; break;
+        case '/': binop_code->code.kind = DIVISION; break;
         default: break;
     }
     binop_code->code.info.binop.result = result;
@@ -494,7 +581,7 @@ int translate_arithmetic(FieldListPtr val1,char operation,FieldListPtr val2){
     intercodes.push_back(&intercodes,binop_code); 
 
     // return tn
-    val1->alias = result->info.var_name;
+    val1->alias = result;
 
     temp_cnt = old_cnt + 1;
 
@@ -519,35 +606,35 @@ int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
             call_code->code.info.read.x = x;
             intercodes.push_back(&intercodes,call_code);
             // return tn = READ()
-            func_call->alias = x->info.var_name;
+            func_call->alias = x;
         }else{
             call_code->code.kind = CALL;
             call_code->code.info.call_func.x = x;
             call_code->code.info.call_func.func_name = func_call->name;
             intercodes.push_back(&intercodes,call_code);
             // return tn = func()
-            func_call->alias = x->info.var_name;
+            func_call->alias = x;
         }
     }else{
         // Exp -> ID LP Args RP
         if(!strcmp(func_call->name,"write")){
             FieldListPtr pargs = func_call->tail;
             x = (OperandPtr)malloc(sizeof(Operand));
-            if(pargs->alias[0] == 'i'){
+            if(pargs->alias->kind == CONSTANT_INT){
                 x->kind = CONSTANT_INT;
-                x->info.int_val = *(int*)(pargs->val_ptr);
-            }else if(pargs->alias[0] == 'f'){
+                x->info.int_val = pargs->alias->info.int_val;
+            }else if(pargs->alias->kind == CONSTANT_FLOAT){
                 x->kind = CONSTANT_FLOAT;
-                x->info.float_val = *(float*)(pargs->val_ptr);
+                x->info.float_val = pargs->alias->info.float_val;
             }else{
-                x->kind = VARIABLE;
-                x->info.var_name = pargs->alias;
+                x->kind = pargs->alias->kind;
+                x->info.var_name = pargs->alias->info.var_name;
             }
             call_code->code.kind = WRITE;
             call_code->code.info.write.x = x;
             intercodes.push_back(&intercodes,call_code);
             // ret
-            func_call->alias = " ";
+            func_call->alias = x;
         }else{
             // generate codes for args
             FieldListPtr pargs = func_call->tail;
@@ -558,15 +645,15 @@ int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
                 arg_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
                
                 x = (OperandPtr)malloc(sizeof(Operand));
-                if(pargs->alias[0] == 'i'){
+                if(pargs->alias->kind == CONSTANT_INT){
                     x->kind = CONSTANT_INT;
-                    x->info.int_val = *(int*)(pargs->val_ptr);
-                }else if(pargs->alias[0] == 'f'){
+                    x->info.int_val = pargs->alias->info.int_val;
+                }else if(pargs->alias->kind == CONSTANT_FLOAT){
                     x->kind = CONSTANT_FLOAT;
-                    x->info.float_val = *(float*)(pargs->val_ptr);
+                    x->info.float_val = pargs->alias->info.float_val;
                 }else{
-                    x->kind = VARIABLE;
-                    x->info.var_name = pargs->alias;
+                    x->kind = pargs->alias->kind;
+                    x->info.var_name = pargs->alias->info.var_name;
                 }
 
                 arg_code->code.kind = ARG;
@@ -587,7 +674,7 @@ int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
             call_code->code.info.call_func.func_name = func_call->name;
             intercodes.push_back(&intercodes,call_code);
             // return tn = func()
-            func_call->alias = x->info.var_name;
+            func_call->alias = x;
         }
     }
     temp_cnt = old_cnt + 1;
@@ -600,15 +687,15 @@ int translate_return(FieldListPtr ret){
     ret_code->code.kind = RET;
     ret_code->code.info.ret.x = (OperandPtr)malloc(sizeof(Operand));
 
-    if(ret->alias[0] == 'i'){
+    if(ret->alias->kind == CONSTANT_INT){
         ret_code->code.info.ret.x->kind = CONSTANT_INT;
         ret_code->code.info.ret.x->info.int_val = *(int*)(ret->val_ptr);
-    }else if(ret->alias[0] == 'f'){
+    }else if(ret->alias->kind == CONSTANT_FLOAT){
         ret_code->code.info.ret.x->kind = CONSTANT_FLOAT;
         ret_code->code.info.ret.x->info.float_val = *(float*)(ret->val_ptr);
     }else{
-        ret_code->code.info.ret.x->kind = VARIABLE;
-        ret_code->code.info.ret.x->info.var_name = ret->alias;
+        ret_code->code.info.ret.x->kind = ret->alias->kind;
+        ret_code->code.info.ret.x->info.var_name = ret->alias->info.var_name;
     }
     intercodes.push_back(&intercodes,ret_code);
     return 1;
@@ -665,13 +752,13 @@ int translate_ret_ass_num(FieldListPtr* ret,int num){
     n = (OperandPtr)malloc(sizeof(Operand));
 
     x->kind = VARIABLE;
-    if(x->kind != VARIABLE || (*ret)->alias[0] != 't'){
+    if(x->kind != VARIABLE || (*ret)->alias->info.var_name[0] != 't'){
         x->info.var_name = (char*)malloc(sizeof(char)*10);
         sprintf(x->info.var_name,"t%d",temp_cnt++);
         // return the result
-        (*ret)->alias = x->info.var_name;
+        (*ret)->alias->info.var_name = x->info.var_name;
     }else{
-        x->info.var_name = (*ret)->alias;
+        x->info.var_name = (*ret)->alias->info.var_name;
     }
 
     n->kind = CONSTANT_INT;
@@ -855,18 +942,18 @@ int translate_exchange_label(char a,char b){
 }
 
 int fill_operand(FieldListPtr field,OperandPtr operand){
-    switch(field->alias[0]){
-        case 'i':
+    switch(field->alias->kind){
+        case CONSTANT_INT:
             operand->kind = CONSTANT_INT;
-            operand->info.int_val = *(int*)field->val_ptr;
+            operand->info.int_val = field->alias->info.int_val;
             break;
-        case 'f':
+        case CONSTANT_FLOAT:
             operand->kind = CONSTANT_FLOAT;
-            operand->info.float_val = *(float*)field->val_ptr;
+            operand->info.float_val = field->alias->info.float_val;
             break;
         default:
-            operand->kind = VARIABLE;
-            operand->info.var_name = field->alias;
+            operand->kind = field->alias->kind;
+            operand->info.var_name = field->alias->info.var_name;
             break;
     }
     return 1;
@@ -883,7 +970,7 @@ int print_intercodes(FILE* out){
             case ADD:
             case SUB:
             case MUL:
-            case DIV:
+            case DIVISION:
                 print_intercodes_binop(out,iter);
                 break;
             case LABEL:
@@ -961,7 +1048,7 @@ int print_intercodes_binop(FILE* out,InterCodeListNodePtr code){
         case MUL:
             op_name = "*";
             break;
-        case DIV:
+        case DIVISION:
             op_name = "/";
             break;
         default:
@@ -1112,11 +1199,41 @@ int optimization_arithmetic(){
     OperandPtr res,op1,op2;
     // optimization for two immediate number operation
     for(;pcode != intercodes.trailer; pcode = pcode->succ){
-        if(pcode->code.kind >= ADD && pcode->code.kind <= DIV){
+        if(pcode->code.kind >= ADD && pcode->code.kind <= DIVISION){
             res = pcode->code.info.binop.result;
             op1 = pcode->code.info.binop.op1;
             op2 = pcode->code.info.binop.op2;
-            if(op1->kind == op2->kind){
+            if(op1->kind != op2->kind){
+                if(op1->kind == CONSTANT_INT){
+                    if(pcode->code.kind == ADD && op1->info.int_val == 0){
+                        pcode->code.kind = ASSIGN;
+                        pcode->code.info.assign.left = res;
+                        pcode->code.info.assign.right = op2;
+                    }else if(pcode->code.kind == MUL && op1->info.int_val == 0){
+                        pcode->code.kind = ASSIGN;
+                        pcode->code.info.assign.left = res;
+                        pcode->code.info.assign.right = op1;
+                    }else if(pcode->code.kind == MUL && op1->info.int_val == 1){
+                        pcode->code.kind = ASSIGN;
+                        pcode->code.info.assign.left = res;
+                        pcode->code.info.assign.right = op2;
+                    }
+                }else if(op2->kind == CONSTANT_INT){
+                    if(pcode->code.kind == ADD && op2->info.int_val == 0){
+                        pcode->code.kind = ASSIGN;
+                        pcode->code.info.assign.left = res;
+                        pcode->code.info.assign.right = op1;
+                    }else if(pcode->code.kind == MUL && op2->info.int_val == 0){
+                        pcode->code.kind = ASSIGN;
+                        pcode->code.info.assign.left = res;
+                        pcode->code.info.assign.right = op2;
+                    }else if(pcode->code.kind == MUL && op2->info.int_val == 1){
+                        pcode->code.kind = ASSIGN;
+                        pcode->code.info.assign.left = res;
+                        pcode->code.info.assign.right = op1;
+                    }
+                }
+            }else if(op1->kind == op2->kind){
                 if(op1->kind == CONSTANT_INT){
                     switch(pcode->code.kind){
                         case ADD:
@@ -1128,7 +1245,7 @@ int optimization_arithmetic(){
                         case MUL:
                             op1->info.int_val *= op2->info.int_val;
                             break;
-                        case DIV:
+                        case DIVISION:
                             op1->info.int_val /= op2->info.int_val;
                             break;
                         default: break;
@@ -1147,7 +1264,7 @@ int optimization_arithmetic(){
                         case MUL:
                             op1->info.float_val *= op2->info.float_val;
                             break;
-                        case DIV:
+                        case DIVISION:
                             op1->info.float_val /= op2->info.float_val;
                             break;
                         default: break;
@@ -1197,9 +1314,11 @@ int optimization_func(){
                 OperandPtr prev_left,write_x;
                 prev_left = pcode->prev->code.info.assign.left;
                 write_x = pcode->code.info.write.x;
-                if(!strcmp(prev_left->info.var_name,write_x->info.var_name)){
+                if(prev_left->kind == write_x->kind){
+                    if(!strcmp(prev_left->info.var_name,write_x->info.var_name)){
                     pcode->code.info.write.x = pcode->prev->code.info.assign.right;
                     intercodes.del(&intercodes,pcode->prev);
+                    }
                 }
             }
             // t = call func
@@ -1211,9 +1330,11 @@ int optimization_func(){
                 OperandPtr succ_right,call_left;
                 call_left = pcode->code.info.call_func.x;
                 succ_right = pcode->succ->code.info.assign.right;
-                if(!strcmp(call_left->info.var_name,succ_right->info.var_name)){
+                if(succ_right->kind == call_left->kind){
+                    if(!strcmp(call_left->info.var_name,succ_right->info.var_name)){
                     pcode->code.info.call_func.x = pcode->succ->code.info.assign.left;
                     intercodes.del(&intercodes,pcode->succ);
+                    }
                 }
             }
             // x = right
@@ -1225,9 +1346,11 @@ int optimization_func(){
                 OperandPtr ret_x,prev_left;
                 prev_left = pcode->prev->code.info.assign.left;
                 ret_x = pcode->code.info.ret.x;
-                if(!strcmp(prev_left->info.var_name,ret_x->info.var_name)){
+                if(ret_x->kind == prev_left->kind){
+                    if(!strcmp(prev_left->info.var_name,ret_x->info.var_name)){
                     pcode->code.info.ret.x = pcode->prev->code.info.assign.right;
                     intercodes.del(&intercodes,pcode->prev);
+                    }
                 }
             }
         }
