@@ -27,6 +27,7 @@ int ST_Program(struct SyntaxTreeNode* Program){                             // P
     #else
         pic = stdout;
     #endif
+    optimization_intercodes();
     print_intercodes(pic);
 
     return 1;
@@ -383,8 +384,8 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
             }
         }
         // enter the function  and clear the cnt for local variable
-        local_cnt = 0;
-        temp_cnt = 0;
+        local_cnt = 1;
+        temp_cnt = 1;
         // generate intercodes on function declaration
         translate_func_dec(func);
     }
@@ -461,8 +462,6 @@ int ST_Stmt(struct SyntaxTreeNode* Stmt,FuncTablePtr func){
         translate_return(exp_val);
     }else if(Stmt->n_children == 5){
         if(!strcmp(Stmt->node_name,"IF")){                                 // Stmt -> IF LP Exp RP Stmt
-            // activate the condition flag
-            condition_flag = 1;
             int true_cnt,false_cnt;
             true_cnt = label_cnt++;
             false_cnt = label_cnt++;
@@ -479,11 +478,7 @@ int ST_Stmt(struct SyntaxTreeNode* Stmt,FuncTablePtr func){
                     translate_label('f',false_cnt);
                 }
             }
-            //deactivate the condition flag
-            condition_flag = 0;
         }else{                                                             // Stmt -> WHILE LP Exp RP Stmt
-            // activate the condition flag
-            condition_flag = 1;
             int true_cnt,false_cnt,next_cnt;
             true_cnt = label_cnt++;
             false_cnt = label_cnt++;
@@ -508,12 +503,8 @@ int ST_Stmt(struct SyntaxTreeNode* Stmt,FuncTablePtr func){
                 // if false, it goes to the false_label
                 translate_label('f',false_cnt);
             }
-            //deactivate the condition flag
-            condition_flag = 0;
         }
     }else if(Stmt->n_children == 7){                                       // Stmt -> IF LP Exp RP Stmt ELSE Stmt
-        // activate the condition flag
-        condition_flag = 1;
         int true_cnt,false_cnt,next_cnt;
         true_cnt = label_cnt++;
         false_cnt = label_cnt++;
@@ -539,8 +530,6 @@ int ST_Stmt(struct SyntaxTreeNode* Stmt,FuncTablePtr func){
                 translate_label('n',next_cnt);
             }
         }
-        //deactivate the condition flag
-        condition_flag = 0;
     }
     return 1;
 }

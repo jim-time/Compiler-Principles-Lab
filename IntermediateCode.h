@@ -54,16 +54,15 @@ extern int temp_cnt;
 
 // conditon judgment
 struct LabelInfo_t{
-    uint32_t true_cnt;
-    InterCodeListNodePtr true_node;
-    uint32_t false_cnt;
-    InterCodeListNodePtr false_node;
-    uint32_t next_cnt;
-    InterCodeListNodePtr next_node;
+    uint32_t order;
+    InterCodeListNodePtr node;
+    uint32_t namesake;
+    InterCodeListNodePtr ano_node;
+    LabelInfoPtr prev;
+    LabelInfoPtr succ;
 };
 
 extern int label_cnt;
-extern int condition_flag;
 extern LabelInfo label_info;
 //translate functions
 int translate_func_dec(FuncTablePtr func);
@@ -95,4 +94,11 @@ int print_intercodes(FILE* out);
 int print_intercodes_assign(FILE* out, InterCodeListNodePtr code);
 int print_intercodes_binop(FILE* out, InterCodeListNodePtr code);
 char* sprint_operand(OperandPtr op);
+
+// optimization codes
+int optimization_intercodes();
+int optimization_label();
+int optimization_cond();
+int optimization_arithmetic();
+int optimization_func();
 #endif

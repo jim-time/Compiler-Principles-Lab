@@ -1,8 +1,9 @@
 OUTDIR := ./Output
-objects := SyntaxTree.o main.o TypeCheck.o SymbolTable.o SemanticAnalysis.o my_vector.o lex.yy.c c--.tab.c
+OBJECTS := SyntaxTree.o main.o TypeCheck.o SymbolTable.o SemanticAnalysis.o IntermediateCode.o my_vector.o my_list.o lex.yy.c c--.tab.c
+TARGET := parser
 CFLAGS := -c -g
-parser: $(objects)
-	cc -g $(objects)  -Wall -lfl -ly -o parser
+$(TARGET): $(OBJECTS)
+	cc -g $(OBJECTS)  -Wall -lfl -ly -o $(TARGET)
 
 SyntaxTree.o: SyntaxTree.c SyntaxTree.h
 	cc $(CFLAGS) $<
@@ -13,10 +14,16 @@ main.o:	main.c lex.yy.c c--.tab.c SyntaxTree.h
 my_vector.o: my_vector.c my_vector.h
 	cc $(CFLAGS) $<
 
+my_list.o: my_list.c my_list.h
+	cc $(CFLAGS) $<
+
 SymbolTable.o: SymbolTable.c SymbolTable.h my_vector.h
 	cc $(CFLAGS) $^
 
 SemanticAnalysis.o: SemanticAnalysis.c SemanticAnalysis.h SyntaxTree.h
+	cc $(CFLAGS) $<
+
+IntermediateCode.o: IntermediateCode.c IntermediateCode.h
 	cc $(CFLAGS) $<
 
 lex.yy.c : c--.tab.h c--.tab.c c--.l SyntaxTree.h
@@ -28,4 +35,4 @@ c--.tab.c : c--.y c--.l SyntaxTree.h
 
 .PHONY:	clean
 clean:
-	rm  *.o *.output lex.yy.c *.tab.* *.gch
+	rm  *.o *.output lex.yy.c *.tab.* *.gch $(TARGET)

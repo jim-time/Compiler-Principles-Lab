@@ -1,18 +1,9 @@
 #include "main.h"
-int local_cnt = 0;
-int temp_cnt = 0;
+int local_cnt = 1;
+int temp_cnt = 1;
 
 // condition judgment
 int label_cnt = 1;
-int condition_flag = 0;
-LabelInfo label_info = {
-    0,
-    NULL,
-    0,
-    NULL,
-    0,
-    NULL
-};
 
 struct List_t intercodes = {
     NULL,
@@ -190,13 +181,14 @@ int translate_localvar(char* var_name){
 }
 
 int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr* ref_arr_base){
-    int old_cnt = temp_cnt++;
+    //int old_cnt = temp_cnt++;
     TypePtr parr;
     FieldListPtr pref = (*ref_arr_base)->tail;
     InterCodeListNodePtr arr_code,sum_code,index_code;
 
     // initialize operands
     OperandPtr ret,result,op1,op2;
+    OperandPtr left;
     ret = (OperandPtr)malloc(sizeof(Operand));
     result = (OperandPtr)malloc(sizeof(Operand));
 
@@ -205,10 +197,6 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
     result->kind = VARIABLE;
     result->info.var_name = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
     sprintf(result->info.var_name,"t%d",temp_cnt++);
-    // rename the ref_arr
-    // int plen = 0;
-    // (*ref_arr_base)->name = (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-    // plen += sprintf((*ref_arr_base)->name,"%s",arr->name);
 
     // get the index to access the array
     int dim = 0;
@@ -234,7 +222,7 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
             // sum = ref_index * arr_index (optimization)
             ret->kind = VARIABLE;
             ret->info.var_name =  (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-            sprintf(ret->info.var_name,"t%d",old_cnt);
+            sprintf(ret->info.var_name,"t%d",temp_cnt++);
 
             sum_code->code.kind = MUL;
             sum_code->code.info.binop.result = ret;
@@ -269,7 +257,7 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
         printf("Error type %d at line %d: array type \"%s\" is not applicable for your reference\n",NOT_ARRAY,ArrBase->lineno,(*arr)->type->name);
         // return tn
         (*ref_arr_base)->alias = ret->info.var_name;
-        temp_cnt = old_cnt;
+        //temp_cnt = old_cnt;
         return 0;
     }else{
         /* generate code:
@@ -308,8 +296,14 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
         // tn = *tn
         if((*ref_arr_base)->type->kind == BASIC){
             arr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+            left = (OperandPtr)malloc(sizeof(Operand));
             arr_code->code.kind = ASSIGN;
-            arr_code->code.info.assign.left = ret;
+            
+            left->kind = VARIABLE;
+            left->info.var_name = (char*)malloc(sizeof(char)*10);
+            sprintf(left->info.var_name,"t%d",++temp_cnt);
+
+            arr_code->code.info.assign.left = left;
             arr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             arr_code->code.info.assign.right->kind = REFERENCE;
             arr_code->code.info.assign.right->info.var_name = ret->info.var_name;
@@ -317,17 +311,13 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
         }
     }
     // return tn
-    (*ref_arr_base)->alias = ret->info.var_name;
-    temp_cnt = old_cnt+1;
-
-    // if the condition judgment is active
-    // if(condition_flag)
-    //     translate_other_cond(*ref_arr_base);
+    (*ref_arr_base)->alias = left->info.var_name;
+    //temp_cnt = old_cnt+1;
     return 1;
 }
 
 int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int offset){
-    int old_cnt = temp_cnt++;
+    //int old_cnt = temp_cnt++;
     // generate intercodes:
     // tn = hdr + offset
     // tn = *tn
@@ -342,7 +332,7 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
 
         result->kind = VARIABLE;
         result->info.var_name = (char*)malloc(sizeof(char)*10);
-        sprintf(result->info.var_name,"t%d",old_cnt);
+        sprintf(result->info.var_name,"t%d",temp_cnt++);
 
         op1->kind = VARIABLE;
         op1->info.var_name = (*struct_hdr)->alias;
@@ -357,28 +347,28 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
         intercodes.push_back(&intercodes,field_code);
     }else{
         // tn = hdr
-        InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-        result = (OperandPtr)malloc(sizeof(Operand));
-        op1 = (OperandPtr)malloc(sizeof(Operand));
+        // InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
+        // result = (OperandPtr)malloc(sizeof(Operand));
+        // op1 = (OperandPtr)malloc(sizeof(Operand));
 
-        result->kind = VARIABLE;
-        result->info.var_name = (char*)malloc(sizeof(char)*10);
-        sprintf(result->info.var_name,"t%d",old_cnt);
+        // result->kind = VARIABLE;
+        // result->info.var_name = (char*)malloc(sizeof(char)*10);
+        // sprintf(result->info.var_name,"t%d",temp_cnt++);
 
-        op1->kind = VARIABLE;
-        op1->info.var_name = (*struct_hdr)->alias;
+        // op1->kind = VARIABLE;
+        // op1->info.var_name = (*struct_hdr)->alias;
 
-        // optimization for assignment
-        // tn's name != hdr's name
-        if(strcmp(result->info.var_name,op1->info.var_name) || result->kind != op1->kind){
-            field_code->code.kind = ASSIGN;
-            field_code->code.info.assign.left = result;
-            field_code->code.info.assign.right = op1;
-            intercodes.push_back(&intercodes,field_code);
-        }else{
-            free(field_code);
-            free(op1);
-        }
+        // // optimization for assignment
+        // // tn's name != hdr's name
+        // if(strcmp(result->info.var_name,op1->info.var_name) || result->kind != op1->kind){
+        //     field_code->code.kind = ASSIGN;
+        //     field_code->code.info.assign.left = result;
+        //     field_code->code.info.assign.right = op1;
+        //     intercodes.push_back(&intercodes,field_code);
+        // }else{
+        //     free(field_code);
+        //     free(op1);
+        // }
     }
 
     // if the type of field is BASIC
@@ -387,7 +377,15 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
         InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
         op1 = (OperandPtr)malloc(sizeof(Operand));
         op1->kind = REFERENCE;
-        op1->info.var_name = result->info.var_name;
+        if(offset)
+            op1->info.var_name = result->info.var_name;
+        else
+            op1->info.var_name = (*struct_hdr)->alias;
+
+        result = (OperandPtr)malloc(sizeof(Operand));
+        result->kind = VARIABLE;
+        result->info.var_name = (char*)malloc(sizeof(char)*10);
+        sprintf(result->info.var_name,"t%d",temp_cnt++);
 
         field_code->code.kind = ASSIGN;
         field_code->code.info.assign.left = result;
@@ -397,11 +395,8 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
 
     // return tn
     (*ref_field)->alias = result->info.var_name;
-    temp_cnt = old_cnt + 1;
+    //temp_cnt = old_cnt + 1;
 
-    // if the condition judgment is active
-    // if(condition_flag)
-    //     translate_other_cond(*ref_field);
     return 1;
 }
 
@@ -438,9 +433,6 @@ int translate_assign(FieldListPtr lval,FieldListPtr rval){
 
     temp_cnt = old_cnt;
 
-    // if the condition judgment is active
-    // if(condition_flag)
-    //     translate_other_cond(lval);
     return 1;
 }
 
@@ -506,9 +498,6 @@ int translate_arithmetic(FieldListPtr val1,char operation,FieldListPtr val2){
 
     temp_cnt = old_cnt + 1;
 
-    // if the condition judgment is active
-    // if(condition_flag)
-    //     translate_other_cond(val1);
     return 1;
 }
 
@@ -602,10 +591,6 @@ int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
         }
     }
     temp_cnt = old_cnt + 1;
-
-    // if the condition judgment is active
-    // if(condition_flag)
-    //     translate_other_cond(func_call);
     return 1;
 }
 
@@ -795,6 +780,7 @@ int translate_other_cond(FieldListPtr ret,uint32_t true_label,uint32_t false_lab
     y->kind = CONSTANT_INT;
     y->info.int_val = 0;
 
+    // if x != 0 goto true_label
     cond_code->code.kind = COND;
     cond_code->code.info.cond.x = x;
     cond_code->code.info.cond.y = y;
@@ -802,7 +788,7 @@ int translate_other_cond(FieldListPtr ret,uint32_t true_label,uint32_t false_lab
     cond_code->code.info.cond.true_label = true_label;
     intercodes.push_back(&intercodes,cond_code);
 
-    // generate code that goto false condition
+    // goto false_label
     InterCodeListNodePtr false_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
     false_code->code.kind = GOTO;
     false_code->code.info.goto_here.to = false_label;
@@ -1022,11 +1008,229 @@ char* sprint_operand(OperandPtr op){
     return op_name;
 }
 
+
+/**
+ *  @file   IntermediateCode.c
+ *  @brief  Optimization for intermediate codes
+ *  @author jim
+ *  @date   2018-6-23
+ *  @version: v1.0
+**/ 
+int optimization_intercodes(){
+    optimization_cond();
+    optimization_label();
+    optimization_arithmetic();
+    optimization_func();
+    return 1;
+}
+
 int optimization_label(){
+    if(label_cnt == 0)
+        return 1;
+    LabelInfo labels[label_cnt];
+    int label_index,last_index;
     InterCodeListNodePtr pcode = intercodes.header->succ;
+    // record the label
     for(;pcode != intercodes.trailer; pcode = pcode->succ){
         
+        if(pcode->code.kind == LABEL){
+            // complete the entry
+            label_index = pcode->code.info.label.label;
+            labels[label_index].order = label_index;
+            labels[label_index].node = pcode;
+            labels[label_index].namesake = label_index;
+            labels[label_index].ano_node = pcode;
+            // hit the redundant label
+            if(pcode->prev->code.kind == LABEL){
+                last_index = pcode->prev->code.info.label.label;
+                labels[label_index].namesake = labels[last_index].namesake;
+                labels[label_index].ano_node = labels[last_index].ano_node;
+            }
+        }
+    }
+    // optimization for redundant label
+    for(pcode = intercodes.header->succ;pcode != intercodes.trailer; pcode = pcode->succ){
+        if(pcode->code.kind == GOTO){
+            label_index = pcode->code.info.goto_here.to;
+            pcode->code.info.goto_here.to = labels[label_index].namesake;
+        }else if(pcode->code.kind == COND){
+            label_index = pcode->code.info.cond.true_label;
+            pcode->code.info.cond.true_label = labels[label_index].namesake;
+        }
+    }
+    // release the redundant label
+    for(label_index = 1;label_index < label_cnt;label_index++){
+        if(labels[label_index].order != labels[label_index].namesake)
+            intercodes.del(&intercodes,labels[label_index].node);
     }
     return 1;
 }
 
+int optimization_cond(){
+    uint32_t cond_label,goto_label,label_label;
+    char* relop;
+    InterCodeListNodePtr pcode = intercodes.header->succ;
+    // optimization for redundant goto
+    for(;pcode != intercodes.trailer; pcode = pcode->succ){
+        if(pcode->code.kind == COND){
+            if(pcode->succ->code.kind == GOTO && pcode->succ->succ->code.kind == LABEL){
+                
+                cond_label = pcode->code.info.cond.true_label;
+                goto_label = pcode->succ->code.info.goto_here.to;
+                label_label = pcode->succ->succ->code.info.label.label;
+
+                if(cond_label == label_label){
+                    // translate the condtion to false
+                    relop = pcode->code.info.cond.relop;
+                    // get reverser relop
+                    if(!strcmp(relop,">")){
+                        pcode->code.info.cond.relop = "<=";
+                    }else if(!strcmp(relop,"<=")){
+                        pcode->code.info.cond.relop = ">";
+                    }else if(!strcmp(relop,"<")){
+                        pcode->code.info.cond.relop = ">=";
+                    }else if(!strcmp(relop,">=")){
+                        pcode->code.info.cond.relop = "<";
+                    }else if(!strcmp(relop,"==")){
+                        pcode->code.info.cond.relop = "!=";
+                    }else{
+                        pcode->code.info.cond.relop = "==";
+                    }
+                    // assign the false label to condition code
+                    pcode->code.info.cond.true_label = goto_label;
+                    // release the goto code
+                    intercodes.del(&intercodes,pcode->succ);
+                }
+            }
+        }
+    }
+    return 1;
+}
+
+int optimization_arithmetic(){
+    InterCodeListNodePtr pcode = intercodes.header->succ;
+    OperandPtr res,op1,op2;
+    // optimization for two immediate number operation
+    for(;pcode != intercodes.trailer; pcode = pcode->succ){
+        if(pcode->code.kind >= ADD && pcode->code.kind <= DIV){
+            res = pcode->code.info.binop.result;
+            op1 = pcode->code.info.binop.op1;
+            op2 = pcode->code.info.binop.op2;
+            if(op1->kind == op2->kind){
+                if(op1->kind == CONSTANT_INT){
+                    switch(pcode->code.kind){
+                        case ADD:
+                            op1->info.int_val += op2->info.int_val;
+                            break;
+                        case SUB:
+                            op1->info.int_val -= op2->info.int_val;
+                            break;
+                        case MUL:
+                            op1->info.int_val *= op2->info.int_val;
+                            break;
+                        case DIV:
+                            op1->info.int_val /= op2->info.int_val;
+                            break;
+                        default: break;
+                    }
+                    pcode->code.kind = ASSIGN;
+                    pcode->code.info.assign.left = res;
+                    pcode->code.info.assign.right = op1;
+                }else if(op1->kind == CONSTANT_FLOAT){
+                    switch(pcode->code.kind){
+                        case ADD:
+                            op1->info.float_val += op2->info.float_val;
+                            break;
+                        case SUB:
+                            op1->info.float_val -= op2->info.float_val;
+                            break;
+                        case MUL:
+                            op1->info.float_val *= op2->info.float_val;
+                            break;
+                        case DIV:
+                            op1->info.float_val /= op2->info.float_val;
+                            break;
+                        default: break;
+                    }
+                    pcode->code.kind = ASSIGN;
+                    pcode->code.info.assign.left = res;
+                    pcode->code.info.assign.right = op1;
+                }else
+                    continue;
+            }else
+                continue;
+        }
+    }
+    return 1;
+}
+
+// left-val:
+// assign:  left = right            (left)
+// binop:   res = op1 operation op2 (res)
+// x = call func:                   (x)
+// read:    x = read                (x)
+
+// right-val:
+// assign:  left = right            (right)
+// binop:   res = op1 operation op2 (op1,op2)
+// ret:     ret x                   (x)
+// write:   write x                 (x)
+int optimization_func(){
+    // optimization for copy propagation
+    InterCodeListNodePtr pcode = intercodes.header->succ;
+    for(;pcode != intercodes.trailer; pcode = pcode->succ){
+        // READ t
+        // x = t
+        // after optimization:
+        // READ x
+        if(pcode->code.kind == READ){
+            if(pcode->succ->code.kind == ASSIGN){
+                pcode->code.info.read.x = pcode->succ->code.info.assign.left;
+                intercodes.del(&intercodes,pcode->succ);
+            }
+            // x = right
+            // WRITE x
+            // after optimization:
+            // WRITE right
+        }else if(pcode->code.kind == WRITE){
+            if(pcode->prev->code.kind == ASSIGN){
+                OperandPtr prev_left,write_x;
+                prev_left = pcode->prev->code.info.assign.left;
+                write_x = pcode->code.info.write.x;
+                if(!strcmp(prev_left->info.var_name,write_x->info.var_name)){
+                    pcode->code.info.write.x = pcode->prev->code.info.assign.right;
+                    intercodes.del(&intercodes,pcode->prev);
+                }
+            }
+            // t = call func
+            // x = t
+            // after optimization:
+            // x = call func
+        }else if(pcode->code.kind == CALL){
+            if(pcode->succ->code.kind == ASSIGN){
+                OperandPtr succ_right,call_left;
+                call_left = pcode->code.info.call_func.x;
+                succ_right = pcode->succ->code.info.assign.right;
+                if(!strcmp(call_left->info.var_name,succ_right->info.var_name)){
+                    pcode->code.info.call_func.x = pcode->succ->code.info.assign.left;
+                    intercodes.del(&intercodes,pcode->succ);
+                }
+            }
+            // x = right
+            // ret x
+            // after optimization:
+            // ret right
+        }else if(pcode->code.kind == RET){
+            if(pcode->prev->code.kind == ASSIGN){
+                OperandPtr ret_x,prev_left;
+                prev_left = pcode->prev->code.info.assign.left;
+                ret_x = pcode->code.info.ret.x;
+                if(!strcmp(prev_left->info.var_name,ret_x->info.var_name)){
+                    pcode->code.info.ret.x = pcode->prev->code.info.assign.right;
+                    intercodes.del(&intercodes,pcode->prev);
+                }
+            }
+        }
+    }
+    return 1;
+}
