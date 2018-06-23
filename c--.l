@@ -14,7 +14,7 @@
     #include"string.h"
     #include"c--.tab.h" 
     #include"SyntaxTree.h"
-    #define SCANNER_OUTPUT 1
+    #define SCANNER_OUTPUT 0
 
     int int_num;
     float float_num;
@@ -230,7 +230,8 @@ WHILE while
 #if SCANNER_OUTPUT
     fprintf(pscanner,"RELOP\n");
 #endif    
-    node_data.int_value = 0;
+    node_data.string_value = (char*)malloc(strlen(yytext)+1);
+    strcpy(node_data.string_value,yytext);
     yylval.type_node = CreateNode(NULL,"RELOP",node_data,yylineno);
     return RELOP;
 }
@@ -262,7 +263,8 @@ WHILE while
 #if SCANNER_OUTPUT        
     fprintf(pscanner,"AND\n");
 #endif     
-    node_data.int_value = 0;
+    node_data.string_value = (char*)malloc(strlen(yytext)+1);
+    strcpy(node_data.string_value,yytext);
     yylval.type_node = CreateNode(NULL,"AND",node_data,yylineno);
     return AND;
 }
@@ -270,7 +272,8 @@ WHILE while
 #if SCANNER_OUTPUT     
     fprintf(pscanner,"OR\n");
 #endif     
-    node_data.int_value = 0;
+    node_data.string_value = (char*)malloc(strlen(yytext)+1);
+    strcpy(node_data.string_value,yytext);
     yylval.type_node = CreateNode(NULL,"OR",node_data,yylineno);
     return OR;
 }
@@ -286,7 +289,8 @@ WHILE while
 #if SCANNER_OUTPUT     
     fprintf(pscanner,"NOT\n");
 #endif     
-    node_data.int_value = 0;
+    node_data.string_value = (char*)malloc(strlen(yytext)+1);
+    strcpy(node_data.string_value,yytext);
     yylval.type_node = CreateNode(NULL,"NOT",node_data,yylineno);
     return NOT;
 }
