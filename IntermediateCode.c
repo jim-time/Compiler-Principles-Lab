@@ -64,7 +64,9 @@ int translate_globalvar(char* var_name){
             
         }else if(var->type->kind == ARRAY){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-            OperandPtr x = var->alias;
+            OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
+            x->kind = var->alias->kind;
+            x->info.var_name = var->alias->info.var_name;
 
             // compute the size of array
             // DEC tn size
@@ -132,7 +134,9 @@ int translate_localvar(char* var_name){
             
         }else if(var->type->kind == ARRAY){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-            OperandPtr x = var->alias;
+            OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
+            x->kind = var->alias->kind;
+            x->info.var_name = var->alias->info.var_name;
 
             // compute the size of array
             TypePtr parr = var->type;
