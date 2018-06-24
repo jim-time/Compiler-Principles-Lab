@@ -1197,6 +1197,7 @@ int optimization_cond(){
 int optimization_arithmetic(){
     InterCodeListNodePtr pcode = intercodes.header->succ;
     OperandPtr res,op1,op2;
+    char operation;
     // optimization for two immediate number operation
     for(;pcode != intercodes.trailer; pcode = pcode->succ){
         if(pcode->code.kind >= ADD && pcode->code.kind <= DIVISION){
@@ -1204,34 +1205,17 @@ int optimization_arithmetic(){
             op1 = pcode->code.info.binop.op1;
             op2 = pcode->code.info.binop.op2;
             if(op1->kind != op2->kind){
+                switch(pcode->code.kind){
+                    case ADD: operation = '+';break;
+                    case SUB: operation = '-';break;
+                    case MUL: operation = '*';break;
+                    case DIVISION: operation = '/';break;
+                    default: break;
+                }
                 if(op1->kind == CONSTANT_INT){
-                    if(pcode->code.kind == ADD && op1->info.int_val == 0){
-                        pcode->code.kind = ASSIGN;
-                        pcode->code.info.assign.left = res;
-                        pcode->code.info.assign.right = op2;
-                    }else if(pcode->code.kind == MUL && op1->info.int_val == 0){
-                        pcode->code.kind = ASSIGN;
-                        pcode->code.info.assign.left = res;
-                        pcode->code.info.assign.right = op1;
-                    }else if(pcode->code.kind == MUL && op1->info.int_val == 1){
-                        pcode->code.kind = ASSIGN;
-                        pcode->code.info.assign.left = res;
-                        pcode->code.info.assign.right = op2;
-                    }
+                    optimization_imm_operand(pcode,op1,operation,op2);
                 }else if(op2->kind == CONSTANT_INT){
-                    if(pcode->code.kind == ADD && op2->info.int_val == 0){
-                        pcode->code.kind = ASSIGN;
-                        pcode->code.info.assign.left = res;
-                        pcode->code.info.assign.right = op1;
-                    }else if(pcode->code.kind == MUL && op2->info.int_val == 0){
-                        pcode->code.kind = ASSIGN;
-                        pcode->code.info.assign.left = res;
-                        pcode->code.info.assign.right = op2;
-                    }else if(pcode->code.kind == MUL && op2->info.int_val == 1){
-                        pcode->code.kind = ASSIGN;
-                        pcode->code.info.assign.left = res;
-                        pcode->code.info.assign.right = op1;
-                    }
+                    optimization_imm_operand(pcode,op2,operation,op1);
                 }
             }else if(op1->kind == op2->kind){
                 if(op1->kind == CONSTANT_INT){
@@ -1281,6 +1265,52 @@ int optimization_arithmetic(){
     return 1;
 }
 
+// only optimize the immediate that is interger
+int optimization_imm_operand(InterCodeListNodePtr code,OperandPtr imm,char operation,OperandPtr op){
+    OperandPtr res;
+    res = code->code.info.binop.result;
+    switch(operation){
+        case '+':
+            // res = 0 + op
+            if(imm->info.int_val == 0){
+                code->code.kind = ASSIGN;
+                code->code.info.assign.left = res;
+                code->code.info.assign.right = op;
+            }
+            break;
+        case '-':
+            // res = op - 0
+            if(imm == code->code.info.binop.op2){
+                code->code.kind = ASSIGN;
+                code->code.info.assign.left = res;
+                code->code.info.assign.right = op;
+            }
+            break;
+        case '*':
+            // res = 0 * op
+            if(imm->info.int_val == 0){
+                code->code.kind = ASSIGN;
+                code->code.info.assign.left = res;
+                code->code.info.assign.right = imm;
+            // res = 1 * op
+            }else if(imm->info.int_val == 1){
+                code->code.kind = ASSIGN;
+                code->code.info.assign.left = res;
+                code->code.info.assign.right = op;
+            }
+            break;
+        case '/':
+            // res = op / 1
+            if(imm == code->code.info.binop.op2){
+                code->code.kind = ASSIGN;
+                code->code.info.assign.left = res;
+                code->code.info.assign.right = op;
+            }
+            break;
+        default:break;
+    }
+    return 1;
+}
 // left-val:
 // assign:  left = right            (left)
 // binop:   res = op1 operation op2 (res)

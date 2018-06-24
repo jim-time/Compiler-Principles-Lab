@@ -1,5 +1,5 @@
 #include "main.h"
-#define PRINT_TBALE 1
+#define PRINT_TBALE 0
 
 //struct hierarchy
 uint16_t hierarchy = 0;
@@ -25,7 +25,7 @@ int ST_Program(struct SyntaxTreeNode* Program){                             // P
         print_vartable();
         print_functable();
     #else
-        pic = stdout;
+        //pic = stdout;
     #endif
     optimization_intercodes();
     //print_intercodes(stdout);

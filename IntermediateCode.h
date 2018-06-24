@@ -121,6 +121,8 @@ char* sprint_operand(OperandPtr op);
 int optimization_intercodes();
 int optimization_label();
 int optimization_cond();
+
+int optimization_imm_operand(InterCodeListNodePtr code,OperandPtr imm,char operation,OperandPtr op);
 int optimization_arithmetic();
 int optimization_func();
 #endif
