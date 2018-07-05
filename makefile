@@ -1,5 +1,5 @@
 OUTDIR := ./Output
-OBJECTS := SyntaxTree.o main.o TypeCheck.o SymbolTable.o SemanticAnalysis.o IntermediateCode.o my_vector.o my_list.o lex.yy.c c--.tab.c
+OBJECTS := SyntaxTree.o main.o TypeCheck.o SymbolTable.o SemanticAnalysis.o IntermediateCode.o CodeGenerator.o RegAllocation.o my_vector.o my_list.o lex.yy.c c--.tab.c
 TARGET := parser
 CFLAGS := -c -g
 $(TARGET): $(OBJECTS)
@@ -24,6 +24,12 @@ SemanticAnalysis.o: SemanticAnalysis.c SemanticAnalysis.h SyntaxTree.h
 	cc $(CFLAGS) $<
 
 IntermediateCode.o: IntermediateCode.c IntermediateCode.h
+	cc $(CFLAGS) $<
+
+CodeGenerator.o: CodeGenerator.c CodeGenerator.h
+	cc $(CFLAGS) $<
+
+RegAllocation.o: RegAllocation.c RegAllocation.h
 	cc $(CFLAGS) $<
 
 lex.yy.c : c--.tab.h c--.tab.c c--.l SyntaxTree.h

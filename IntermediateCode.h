@@ -112,6 +112,7 @@ int translate_ret_ass_num(FieldListPtr* ret,int num);
 int fill_operand(FieldListPtr field,OperandPtr operand);
 
 int print_intercodes(FILE* out);
+int print_singlecode(FILE* out, InterCodeListNodePtr code);
 
 int print_intercodes_assign(FILE* out, InterCodeListNodePtr code);
 int print_intercodes_binop(FILE* out, InterCodeListNodePtr code);

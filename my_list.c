@@ -42,7 +42,6 @@ int List_Del(ListPtr list, ListNodePtr node){
     node->prev->succ = node->succ;
     node->succ->prev = node->prev;
     free(node);
-
     return 1;
 }
 

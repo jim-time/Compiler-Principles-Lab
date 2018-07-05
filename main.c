@@ -18,6 +18,7 @@ extern int yydebug;
 
 FILE *pscanner;
 FILE* pic = NULL;
+FILE* pcg = NULL;
 
 struct SyntaxTreeNode* root;
 int error_hint = 0;
@@ -40,18 +41,25 @@ int main(int argc, char** argv) {
         }
         yydebug = 0;
     }
-    pscanner = fopen("scanner.output","w+");
+    pscanner = fopen("./Output/scanner.output","w+");
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0){
-        pic = fopen("out.ir","w+");
+        pic = fopen("./Output/out.ir","w+");
+        pcg = fopen("./Output/code.s","w+");
         if(!pic){
             printf("Failed to open out.ir\n");
             return 0;
         }
+        if(!pcg){
+            printf("Failed to open code.s\n");
+            return 0;
+        }
         //PreOrderTraverse(root,0);
         ST_Program(root);
-
+        // generate assembly
+        CodeGenerator(pcg);
+        fclose(pcg);
         fclose(pic);
     }
     fclose(pscanner);

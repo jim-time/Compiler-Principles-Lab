@@ -136,7 +136,8 @@ int translate_localvar(char* var_name){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
             x->kind = var->alias->kind;
-            x->info.var_name = var->alias->info.var_name;
+            x->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+            sprintf(x->info.var_name,"_%s",var->alias->info.var_name);
 
             // compute the size of array
             TypePtr parr = var->type;
@@ -159,10 +160,10 @@ int translate_localvar(char* var_name){
 
             addr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             addr_code->code.info.assign.right->kind = ADDRESS;
-            addr_code->code.info.assign.right->info.var_name = var->alias->info.var_name;
+            addr_code->code.info.assign.right->info.var_name = x->info.var_name;
 
-            var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
-            sprintf(var->alias->info.var_name,"v%d",local_cnt++);
+            //var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+            //sprintf(var->alias->info.var_name,"v%d",local_cnt);
             addr_code->code.info.assign.left = var->alias;
             intercodes.push_back(&intercodes,addr_code);
         }else if(var->type->kind == STRUCTURE){
@@ -1016,6 +1017,57 @@ int print_intercodes(FILE* out){
     }
 }
 
+int print_singlecode(FILE* out, InterCodeListNodePtr code){
+    InterCodeListNodePtr iter = code;
+    switch(iter->code.kind){
+        case ASSIGN:
+            print_intercodes_assign(out,iter);
+            break;
+        case ADD:
+        case SUB:
+        case MUL:
+        case DIVISION:
+            print_intercodes_binop(out,iter);
+            break;
+        case LABEL:
+            fprintf(out,"LABEL label%d :\n",iter->code.info.label.label);
+            break;
+        case FUNCTION:
+            fprintf(out,"FUNCTION %s :\n",iter->code.info.func.func_name);
+            break;
+        case GOTO:
+            fprintf(out,"GOTO label%d\n",iter->code.info.goto_here.to);
+            break;
+        case COND:
+            fprintf(out,"IF %s %s %s GOTO label%d\n",sprint_operand(iter->code.info.cond.x),iter->code.info.cond.relop,sprint_operand(iter->code.info.cond.y),iter->code.info.cond.true_label);
+            break;
+        case RET:
+            fprintf(out,"RETURN %s\n",sprint_operand(iter->code.info.ret.x));
+            break;
+        case DEC:
+            fprintf(out,"DEC %s %d\n",sprint_operand(iter->code.info.dec.x),iter->code.info.dec.size);
+            break;
+        case ARG:
+            fprintf(out,"ARG %s\n",sprint_operand(iter->code.info.arg.x));
+            break;
+        case CALL:
+            fprintf(out,"%s := CALL %s\n",sprint_operand(iter->code.info.call_func.x),iter->code.info.call_func.func_name);
+            break;
+        case PARAM:
+            fprintf(out,"PARAM %s\n",iter->code.info.param.x);
+            break;
+        case READ:
+            fprintf(out,"READ %s\n",sprint_operand(iter->code.info.read.x));
+            break;
+        case WRITE:
+            fprintf(out,"WRITE %s\n",sprint_operand(iter->code.info.read.x));
+            break;
+        default:
+            break;
+    }
+    return 1;
+}
+
 int print_intercodes_assign(FILE* out,InterCodeListNodePtr code){
     OperandPtr left,right;
     left = code->code.info.assign.left;
@@ -1119,6 +1171,7 @@ int optimization_label(){
     if(label_cnt == 0)
         return 1;
     LabelInfo labels[label_cnt];
+    memset(labels,0,sizeof(LabelInfo)*label_cnt);
     int label_index,last_index;
     InterCodeListNodePtr pcode = intercodes.header->succ;
     // record the label
@@ -1152,7 +1205,8 @@ int optimization_label(){
     // release the redundant label
     for(label_index = 1;label_index < label_cnt;label_index++){
         if(labels[label_index].order != labels[label_index].namesake)
-            intercodes.del(&intercodes,labels[label_index].node);
+            if(labels[label_index].node)
+                intercodes.del(&intercodes,labels[label_index].node);
     }
     return 1;
 }
@@ -1191,6 +1245,8 @@ int optimization_cond(){
                     pcode->code.info.cond.true_label = goto_label;
                     // release the goto code
                     intercodes.del(&intercodes,pcode->succ);
+                    // release the true label
+                    intercodes.del(&intercodes,pcode->succ);
                 }
             }
         }
@@ -1201,6 +1257,7 @@ int optimization_cond(){
 int optimization_arithmetic(){
     InterCodeListNodePtr pcode = intercodes.header->succ;
     OperandPtr res,op1,op2;
+    OperandPtr temp;
     char operation;
     // optimization for two immediate number operation
     for(;pcode != intercodes.trailer; pcode = pcode->succ){
@@ -1275,7 +1332,7 @@ int optimization_imm_operand(InterCodeListNodePtr code,OperandPtr imm,char opera
     res = code->code.info.binop.result;
     switch(operation){
         case '+':
-            // res = 0 + op
+            // res = op + 0
             if(imm->info.int_val == 0){
                 code->code.kind = ASSIGN;
                 code->code.info.assign.left = res;
@@ -1285,9 +1342,11 @@ int optimization_imm_operand(InterCodeListNodePtr code,OperandPtr imm,char opera
         case '-':
             // res = op - 0
             if(imm == code->code.info.binop.op2){
-                code->code.kind = ASSIGN;
-                code->code.info.assign.left = res;
-                code->code.info.assign.right = op;
+                if(imm->info.int_val == 0){
+                    code->code.kind = ASSIGN;
+                    code->code.info.assign.left = res;
+                    code->code.info.assign.right = op;
+                }
             }
             break;
         case '*':
@@ -1306,9 +1365,11 @@ int optimization_imm_operand(InterCodeListNodePtr code,OperandPtr imm,char opera
         case '/':
             // res = op / 1
             if(imm == code->code.info.binop.op2){
-                code->code.kind = ASSIGN;
-                code->code.info.assign.left = res;
-                code->code.info.assign.right = op;
+                if(imm->info.int_val == 1){
+                    code->code.kind = ASSIGN;
+                    code->code.info.assign.left = res;
+                    code->code.info.assign.right = op;
+                }
             }
             break;
         default:break;

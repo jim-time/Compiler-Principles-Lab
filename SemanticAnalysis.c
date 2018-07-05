@@ -9,6 +9,7 @@ uint16_t hierarchy = 0;
  * 
  *
 **/  
+
 extern FILE* pic;
 int ST_Program(struct SyntaxTreeNode* Program){                             // Program -> ExtDefList
     //create a type table & symbol table
@@ -30,7 +31,6 @@ int ST_Program(struct SyntaxTreeNode* Program){                             // P
     optimization_intercodes();
     //print_intercodes(stdout);
     print_intercodes(pic);
-
     return 1;
 }
 
@@ -386,7 +386,7 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
         }
         // enter the function  and clear the cnt for local variable
         //local_cnt = 1;
-        temp_cnt = 1;
+        //temp_cnt = 1;
         // generate intercodes on function declaration
         translate_func_dec(func);
     }
@@ -462,7 +462,7 @@ int ST_Stmt(struct SyntaxTreeNode* Stmt,FuncTablePtr func){
         // generate intercodes for return statement
         translate_return(exp_val);
     }else if(Stmt->n_children == 5){
-        if(!strcmp(Stmt->node_name,"IF")){                                 // Stmt -> IF LP Exp RP Stmt
+        if(!strcmp(Stmt->children[0]->node_name,"IF")){                                 // Stmt -> IF LP Exp RP Stmt
             int true_cnt,false_cnt;
             true_cnt = label_cnt++;
             false_cnt = label_cnt++;
