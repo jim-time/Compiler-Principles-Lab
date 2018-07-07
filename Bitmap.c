@@ -37,6 +37,26 @@ int Bitmap_Create(BitmapPtr bitmap,int size){
     return 1;
 }
 
+int Bitmap_Copy(BitmapPtr A, BitmapPtr B){
+    if(A->setSize == B->setSize){
+        int iter;
+        for(iter = 0; iter < A->vectorSize; iter++){
+            A->bitVector[iter] = B->bitVector[iter];
+        }
+    }else{
+        printf("Bitmap: Copy failed\n");
+        return 0;
+    }
+    return 1;
+}
+
+int Bitmap_Resize(BitmapPtr bitmap,int size){
+    if(bitmap->bitVector)
+        free(bitmap->bitVector);
+    Bitmap_Create(bitmap,size);
+    return 1;
+}
+
 int Bitmap_MakeEmpty(BitmapPtr bitmap){
     int iter = 0;
     for(;iter < bitmap->vectorSize; iter++){
@@ -78,6 +98,18 @@ int Bitmap_delMember(BitmapPtr bitmap,int x){
         }
     }
     return 0;
+}
+
+int Bitmap_isEqual(BitmapPtr A,BitmapPtr B){
+    int iterVec;
+    if(A->setSize == B->setSize){
+        for(iterVec=0;iterVec < A->vectorSize; iterVec++){
+            if(A->bitVector[iterVec] != B->bitVector[iterVec])
+                return 0;
+        }
+    }else
+        return 0;
+    return 1;
 }
 
 BitmapPtr Bitmap_unionWith(BitmapPtr A,BitmapPtr B){
@@ -142,4 +174,16 @@ BitmapPtr Bitmap_differenceFrom(BitmapPtr A,BitmapPtr B){
         setC->bitVector[iter] = A->bitVector[iter] & (~B->bitVector[iter]);
     }
     return setC;
+}
+
+int Bitmap_printMember(BitmapPtr set,FILE* out){
+    int size_cnt = 0;
+    char* out_buffer = (char*)malloc(sizeof(char)*set->setSize+1);
+    uint32_t elem;
+    for(;size_cnt < set->setSize; size_cnt++){
+        sprintf(out_buffer+size_cnt,"%d",Bitmap_getMember(set,size_cnt));
+    }
+    fprintf(out,"%s\n",out_buffer);
+    free(out_buffer);
+    return 1;
 }

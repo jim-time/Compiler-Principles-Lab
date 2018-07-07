@@ -386,7 +386,7 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
         }
         // enter the function  and clear the cnt for local variable
         //local_cnt = 1;
-        //temp_cnt = 1;
+        temp_cnt = 1;
         // generate intercodes on function declaration
         translate_func_dec(func);
     }
@@ -763,15 +763,15 @@ int ST_Args(struct SyntaxTreeNode* Args, FieldListPtr* ret_args){
 
 int ST_ASSIGNOP(struct SyntaxTreeNode* LVal,struct SyntaxTreeNode* RVal, FieldListPtr* ret_val){
     FieldListPtr lval, rval;
-    if(ST_Exp(RVal,&rval)){
-        
-    }
     //  Legal lvalue:
     //  variable: Exp -> ID
     //  array:    Exp -> Exp LB Exp RB
     //  field:    Exp -> Exp DOT ID
     int var_cond,arr_cond,field_cond;
     if(ST_Exp(LVal,&lval)){
+        if(ST_Exp(RVal,&rval)){
+        
+        }
         var_cond   = (LVal->n_children == 1) && (!strcmp(LVal->children[0]->node_name,"ID"));
         arr_cond   = (LVal->n_children == 4) && (!strcmp(LVal->children[1]->node_name,"LB"));
         field_cond = (LVal->n_children == 3) && (!strcmp(LVal->children[1]->node_name,"DOT"));

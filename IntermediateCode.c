@@ -192,7 +192,6 @@ int translate_localvar(char* var_name){
 }
 
 int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr* ref_arr_base){
-    //int old_cnt = temp_cnt++;
     TypePtr parr;
     FieldListPtr pref = (*ref_arr_base)->tail;
     InterCodeListNodePtr arr_code,sum_code,index_code;
@@ -297,7 +296,6 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
         printf("Error type %d at line %d: array type \"%s\" is not applicable for your reference\n",NOT_ARRAY,ArrBase->lineno,(*arr)->type->name);
         // return tn
         (*ref_arr_base)->alias = sum;
-        //temp_cnt = old_cnt;
         return 0;
     }else{
         /* generate code:
@@ -404,16 +402,16 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
             sum = (OperandPtr)malloc(sizeof(Operand));
             sum->kind = REFERENCE;
             sum->info.var_name = sum_name;
+            // sum->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+            // sprintf(sum->info.var_name,"t%d",temp_cnt++);
         }
     }
     // return tn
     (*ref_arr_base)->alias = sum;
-    //temp_cnt = old_cnt+1;
     return 1;
 }
 
 int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int offset){
-    //int old_cnt = temp_cnt++;
     // generate intercodes:
     // tn = hdr + offset
     // tn = *tn
@@ -498,8 +496,6 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
 
     // return tn
     (*ref_field)->alias = result;
-    //temp_cnt = old_cnt + 1;
-
     return 1;
 }
 
@@ -512,14 +508,19 @@ int translate_assign(FieldListPtr lval,FieldListPtr rval){
             return 1;
         }
     }
-    InterCodeListNodePtr assign_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
     OperandPtr left,right;
-    // left = (OperandPtr)malloc(sizeof(Operand));
-    // right = (OperandPtr)malloc(sizeof(Operand));
-
     left = lval->alias;
     right = rval->alias;
 
+    //optimization
+    if(right->kind == VARIABLE){
+        if(left->kind == VARIABLE && right->info.var_name[0] == 't'){
+            rval->alias->kind = lval->alias->kind;
+            rval->alias->info.var_name = lval->alias->info.var_name;
+            return 1;
+        }
+    }
+    InterCodeListNodePtr assign_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
     assign_code->code.kind = ASSIGN;
     assign_code->code.info.assign.left = left;
     assign_code->code.info.assign.right = right;
@@ -529,7 +530,6 @@ int translate_assign(FieldListPtr lval,FieldListPtr rval){
 }
 
 int translate_arithmetic(FieldListPtr val1,char operation,FieldListPtr val2){
-    int old_cnt = temp_cnt++;
     // generate intercodes for arithmetic operation
     InterCodeListNodePtr binop_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
     OperandPtr result,op1,op2;
@@ -539,8 +539,8 @@ int translate_arithmetic(FieldListPtr val1,char operation,FieldListPtr val2){
 
     // get the result
     result->kind = VARIABLE;
-    result->info.var_name = (char*)malloc(sizeof(char)*10);
-    sprintf(result->info.var_name,"t%d",old_cnt);
+    result->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+    sprintf(result->info.var_name,"t%d",temp_cnt++);
 
     // get the op1
     if(val1->alias->kind == CONSTANT_INT){
@@ -587,14 +587,10 @@ int translate_arithmetic(FieldListPtr val1,char operation,FieldListPtr val2){
 
     // return tn
     val1->alias = result;
-
-    temp_cnt = old_cnt + 1;
-
     return 1;
 }
 
 int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
-    int old_cnt = temp_cnt++;
     OperandPtr x;
     InterCodeListNodePtr call_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
 
@@ -604,7 +600,7 @@ int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
         x = (OperandPtr)malloc(sizeof(Operand));
         x->kind = VARIABLE;
         x->info.var_name = (char*)malloc(sizeof(char)*10);
-        sprintf(x->info.var_name,"t%d",old_cnt);
+        sprintf(x->info.var_name,"t%d",temp_cnt++);
 
         if(!strcmp(func_call->name,"read")){
             call_code->code.kind = READ;
@@ -672,7 +668,7 @@ int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
             x = (OperandPtr)malloc(sizeof(Operand));
             x->kind = VARIABLE;
             x->info.var_name = (char*)malloc(sizeof(char)*10);
-            sprintf(x->info.var_name,"t%d",old_cnt);
+            sprintf(x->info.var_name,"t%d",temp_cnt++);
 
             call_code->code.kind = CALL;
             call_code->code.info.call_func.x = x;
@@ -682,7 +678,6 @@ int translate_func_call(FuncTablePtr func_def,FieldListPtr func_call){
             func_call->alias = x;
         }
     }
-    temp_cnt = old_cnt + 1;
     return 1;
 }
 
@@ -1421,17 +1416,18 @@ int optimization_func(){
             // after optimization:
             // x = call func
         }else if(pcode->code.kind == CALL){
-            if(pcode->succ->code.kind == ASSIGN){
-                OperandPtr succ_right,call_left;
-                call_left = pcode->code.info.call_func.x;
-                succ_right = pcode->succ->code.info.assign.right;
-                if(succ_right->kind == call_left->kind){
-                    if(!strcmp(call_left->info.var_name,succ_right->info.var_name)){
-                    pcode->code.info.call_func.x = pcode->succ->code.info.assign.left;
-                    intercodes.del(&intercodes,pcode->succ);
-                    }
-                }
-            }
+            // if(pcode->succ->code.kind == ASSIGN){
+            //     OperandPtr succ_right,call_left;
+            //     call_left = pcode->code.info.call_func.x;
+            //     succ_right = pcode->succ->code.info.assign.right;
+            //     if(succ_right->kind == call_left->kind){
+            //         if(!strcmp(call_left->info.var_name,succ_right->info.var_name)){
+            //         pcode->code.info.call_func.x = pcode->succ->code.info.assign.left;
+            //         intercodes.del(&intercodes,pcode->succ);
+            //         }
+            //     }
+            // }
+
             // x = right
             // ret x
             // after optimization:

@@ -1,6 +1,7 @@
 #ifndef __REGALLOCATION_H_
 #define __REGALLOCATION_H_
 #include "main.h"
+#include "Bitmap.h"
 
 #define NUM_BLOCKS  10
 #define NUM_REG 32
@@ -19,7 +20,13 @@ struct BasicBlockNode_t{
     InterCodeListNodePtr code_begin;
     InterCodeListNodePtr code_end;
     BasicBlockNodePtr next;
+    BasicBlockNodePtr prev;
     BasicBlockNodePtr branch;
+    // live-variable analysize
+    int lines;
+    BitmapPtr in;
+    BitmapPtr* out;
+    BitmapPtr* old_out;
 };
 
 struct BasicBlock_t{
@@ -35,8 +42,7 @@ struct RegDT_t{
     OperandDTPtr var;
     struct{
         uint8_t valid:1;
-        uint8_t isNum:1;
-        uint8_t dummy:6;
+        uint8_t dummy:7;
     };
 }reg[NUM_REG];
 
@@ -51,8 +57,9 @@ struct OperandDT_t{
     struct{
         uint8_t in_reg:1;
         uint8_t in_memory:1;
-        uint8_t swap:1;
-        uint8_t dummy:5;
+        uint8_t dirty:1;
+        uint8_t isVar:1;
+        uint8_t dummy:4;
     };
     UT_hash_handle hh;
 };
@@ -60,15 +67,26 @@ struct OperandDT_t{
 //operands table
 extern struct OperandDT_t *ops;
 extern int esp_val;
+extern int backupCnt;
+extern int reg_cnt;
 
+// live-variable analysize
 int CreateBasicBlock();
+int getLiveVarInfo();
 int print_basicblock();
+int getUseDef(InterCodeListNodePtr pcode,BitmapPtr def,BitmapPtr use);
+int getOperandBitInfo(OperandPtr op);
+int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer);
 
-int RegAllocate(FILE* out,OperandDTPtr x);
+// algorithm to the allocation for register
+int RegAllocate(FILE* out,OperandDTPtr x,BitmapPtr liveVar);
 int addOperand(OperandPtr op,OperandDTPtr* ret);
 char* getOpName(OperandPtr op);
-char* getReg(FILE* out, OperandPtr var);
-
-
+int getReg(FILE* out, OperandPtr var,int side,BitmapPtr liveVar);
+int freeVar(FILE* out,OperandPtr op,BitmapPtr liveVar);
 int getRandomNum();
+
+// activation records
+int backupReg(FILE* out,BitmapPtr liveVar);
+int restoreReg(FILE* out, BitmapPtr liveVar);
 #endif
