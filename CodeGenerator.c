@@ -45,7 +45,7 @@ int CodeGenerator(FILE* out){
     CodeGen_Init(out);
     CreateBasicBlock();
     getLiveVarInfo();
-    print_basicblock();
+    //print_basicblock();
     CodeGen_Start(out);
     return 1;
 }

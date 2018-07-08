@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
         }
         yydebug = 0;
     }
-    pscanner = fopen("./Output/scanner.output","w+");
+    //pscanner = fopen("./Output/scanner.output","w+");
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0){
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
         fclose(pcg);
         fclose(pic);
     }
-    fclose(pscanner);
+    //fclose(pscanner);
     return 0;
 }
 
