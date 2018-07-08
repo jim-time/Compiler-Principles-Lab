@@ -567,24 +567,55 @@ int CodeGen_Ret(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
 }
 
 int CodeGen_Read(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
+    // OperandPtr x = code->code.info.read.x;
+    // code->code.kind = CALL;
+    // code->code.info.call_func.x = x;
+    // code->code.info.call_func.func_name = "read";
+    // CodeGen_Args(out,NULL,liveVar);
+    // CodeGen_CallFunc(out,code,liveVar);
+
+    OperandDTPtr entry;
+    // push the return addr
+    PUSH(out,"$ra");
+    // call function
+    fprintf(out,"jal %s\n","read");
+    // restore the return addr
+    POP(out,"$ra");
+    // get the return value
     OperandPtr x = code->code.info.read.x;
-    code->code.kind = CALL;
-    code->code.info.call_func.x = x;
-    code->code.info.call_func.func_name = "read";
-    CodeGen_Args(out,NULL,liveVar);
-    CodeGen_CallFunc(out,code,liveVar);
+    if(x){
+        addOperand(x,&entry);
+        entry->dirty = 1;
+        int ret_reg = getReg(out,x,LEFT_VAL,liveVar);
+        fprintf(out,"move %s, $v0\n",mips_reg[ret_reg]);
+    }
     return 1;
 }
 
 int CodeGen_Write(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
-    OperandPtr x = code->code.info.write.x;
-    code->code.kind = ARG;
-    code->code.info.arg.x = x; 
-    CodeGen_Args(out,code,liveVar);
-    code->code.kind = CALL;
-    code->code.info.call_func.func_name = "write";
-    code->code.info.call_func.x = NULL;
-    CodeGen_CallFunc(out,code,liveVar);
+    // OperandPtr x = code->code.info.write.x;
+    // code->code.kind = ARG;
+    // code->code.info.arg.x = x; 
+    // CodeGen_Args(out,code,liveVar);
+    // code->code.kind = CALL;
+    // code->code.info.call_func.func_name = "write";
+    // code->code.info.call_func.x = NULL;
+    // CodeGen_CallFunc(out,code,liveVar);
+
+    // push the $a0
+    PUSH(out,mips_reg[4]);
+    // move the x to $a0
+    int arg_reg = getReg(out,code->code.info.write.x,RIGHT_VAL,liveVar);
+    fprintf(out,"move %s, %s\n",mips_reg[4],mips_reg[arg_reg]);
+    OperandDTPtr entry;
+    // push the return addr
+    PUSH(out,"$ra");
+    // call function
+    fprintf(out,"jal %s\n","write");
+    // restore the return addr
+    POP(out,"$ra");
+    // pop $a0
+    POP(out,mips_reg[4]);
     return 1;
 }
 
