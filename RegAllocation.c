@@ -70,7 +70,6 @@ int CreateBasicBlock(){
                 }
                 node->next = new_node;
                 new_node->prev = node;
-                if(node->prev->code_begin->code.kind != LABEL)
 
                 node->branch = NULL;
                 new_node->code_begin = new_node->code_end = pcode;
@@ -187,9 +186,9 @@ int print_basicblock(){
 }
 
 int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
-    BitmapPtr def,use,in,temp;
+    BitmapPtr def,use,in,temp,tempdef;
     BitmapPtr *old_out,*out;
-    int iterCode,label;
+    int iterCode,label,kind;
     InterCodeListNodePtr pcode;
     BasicBlockNodePtr pblock;
 
@@ -250,6 +249,8 @@ int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
                             temp = Bitmap_unionWith(in,labels[label].node->in);
                             Bitmap_Copy(out[iterCode],temp);
                             free(temp);
+                            // some bugs
+                            in = Bitmap_unionWith(in,out[iterCode]);
                             break;
                         case GOTO:
                             label = pcode->code.info.goto_here.to;
@@ -258,6 +259,9 @@ int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
                                 Bitmap_Create(labels[label].node->in,local_cnt+temp_cnt-1);
                             }
                             Bitmap_Copy(out[iterCode],labels[label].node->in);
+                            // some bugs 
+                            //Bitmap_Copy(in,out[iterCode]);
+                            in = Bitmap_unionWith(in,out[iterCode]);
                             break;
                         case RET:
                             Bitmap_MakeEmpty(in);
@@ -271,12 +275,21 @@ int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
                     // compute the set of def and use
                     Bitmap_MakeEmpty(def);
                     Bitmap_MakeEmpty(use);
-                    getUseDef(pcode,def,use);
+                    kind = getUseDef(pcode,def,use);
                     // compute the set of in
-                    free(in);
-                    temp = Bitmap_differenceFrom(out[iterCode],def);
-                    in = Bitmap_unionWith(use,temp);
-                    free(temp);
+                    if(kind){
+                        // maybe a bug
+                        if(iterCode + 1 < pblock->lines){
+                            tempdef = def;
+                            def = Bitmap_differenceFrom(def,out[iterCode+1]);
+                            free(tempdef);
+                        }
+                        // 
+                        free(in);
+                        temp = Bitmap_differenceFrom(out[iterCode],def);
+                        in = Bitmap_unionWith(use,temp);
+                        free(temp);
+                    }
                     // update the set of in
                     if(pcode->code.kind == LABEL)
                         Bitmap_Copy(pblock->in,in);
@@ -375,6 +388,7 @@ int getUseDef(InterCodeListNodePtr pcode,BitmapPtr def,BitmapPtr use){
             }
             break;
         default:
+            return 0;
             break;
     }
     return 1;
@@ -607,7 +621,10 @@ int getReg(FILE* out, OperandPtr var,int side,BitmapPtr liveVar){
                 var->kind = REFERENCE;
                 addOperand(var,&entry);
                 rs = RegAllocate(out,entry,liveVar);
-                fprintf(out,"lw %s, %d(%s)\n",mips_reg[rs],base_entry->offset,mips_reg[base_entry->base_reg]);
+                if(base_entry->isVar){
+                    fprintf(out,"lw %s, 0(%s)\n",mips_reg[rs],mips_reg[base]);
+                }else
+                    fprintf(out,"lw %s, %d(%s)\n",mips_reg[rs],base_entry->offset,mips_reg[base_entry->base_reg]);
             }
             reg_cnt = rs;
             break;
@@ -649,16 +666,26 @@ int backupReg(FILE* out,BitmapPtr liveVar){
     backupCnt = 0;
     int iterReg;
     for(iterReg = 8; iterReg < 26; iterReg++){
+        // if(reg[iterReg].var){
+        //     op = reg[iterReg].var->op;
+        //     if(op){
+        //         freeVar(out,reg[iterReg].var->op,liveVar);
+        //     }
+        // }
+        // if(reg[iterReg].valid == 0){
+        //     PUSH(out,mips_reg[iterReg]);
+        //     esp_val -= 4;
+        //     backupCnt++;
+        // }
         if(reg[iterReg].var){
-            op = reg[iterReg].var->op;
-            if(op && op->kind == VARIABLE){
-                freeVar(out,reg[iterReg].var->op,liveVar);
+            if(reg[iterReg].valid == 0){
+                op = reg[iterReg].var->op;
+                if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
+                    PUSH(out,mips_reg[iterReg]);
+                    esp_val -= 4;
+                    backupCnt++;
+                }
             }
-        }
-        if(reg[iterReg].valid == 0){
-            PUSH(out,mips_reg[iterReg]);
-            esp_val -= 4;
-            backupCnt++;
         }
     }
     return 1;
@@ -667,19 +694,32 @@ int backupReg(FILE* out,BitmapPtr liveVar){
 int restoreReg(FILE* out, BitmapPtr liveVar){
     int iterReg;
     int iterParam;
+    OperandPtr op;
     for(iterReg = 25; iterReg >= 8; iterReg--){
-        if(reg[iterReg].valid == 0){
-            POP(out,mips_reg[iterReg]);
-            esp_val +=4;
+        // if(reg[iterReg].valid == 0){
+        //     POP(out,mips_reg[iterReg]);
+        //     esp_val +=4;
+        // }
+        if(reg[iterReg].var){
+            if(reg[iterReg].valid == 0){
+                op = reg[iterReg].var->op;
+                if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
+                    POP(out,mips_reg[iterReg]);
+                    esp_val += 4;
+                }else{
+                    freeVar(out,op,liveVar);
+                }
+            }
         }
     }
     // restore the paramter register: a0-a3
+    // 1 <= param_index <= 4
     if(param_index > 4)
         iterParam = 4;
     else
         iterParam = param_index;
-    for(;iterParam >= 0; iterParam--){
-        POP(out,mips_reg[4+iterParam]);
+    for(;iterParam > 0; iterParam--){
+        POP(out,mips_reg[3+iterParam]);
         esp_val += 4;
     }
     return 1;
@@ -692,12 +732,14 @@ int freeVar(FILE* out,OperandPtr op,BitmapPtr liveVar){
     if(entry->in_reg){
         if(entry->reg){
             if(op->kind == VARIABLE){
-                if(!Bitmap_getMember(liveVar,getOperandBitInfo(op))){
-                    reg[entry->reg].valid = 1;
-                    reg[entry->reg].var = NULL;
-                    entry->in_reg = 0;
-                    entry->in_memory = 0;
-                }               
+                //if(op->info.var_name[0] != 'v'){
+                    if(!Bitmap_getMember(liveVar,getOperandBitInfo(op))){
+                        reg[entry->reg].valid = 1;
+                        reg[entry->reg].var = NULL;
+                        entry->in_reg = 0;
+                        entry->in_memory = 0;
+                    }       
+                //}
             }else if(op->kind == REFERENCE){
                 if(op->info.var_name[0] == 't'){
                     base.kind = VARIABLE;
@@ -712,12 +754,17 @@ int freeVar(FILE* out,OperandPtr op,BitmapPtr liveVar){
                 }else{
 
                 }
+            }else{
+                reg[entry->reg].valid = 1;
+                reg[entry->reg].var = NULL;
+                entry->in_reg = 0;
+                entry->in_memory = 0;
             }
             // if(entry->dirty){
             //     //write back
             //     entry->dirty = 0;
-            //     if(entry->op->kind == VARIABLE || entry->op->kind == REFERENCE){
-            //         if(entry->op->info.var_name[0] == 'v'){
+            //     if(entry->op->kind == VARIABLE){
+            //         //if(entry->op->info.var_name[0] == 'v'){
             //             entry->in_memory = 1;
             //             if(entry->offset == 0){
             //                 PUSH(out,mips_reg[entry->reg]);
@@ -726,7 +773,9 @@ int freeVar(FILE* out,OperandPtr op,BitmapPtr liveVar){
             //                 entry->offset = esp_val;
             //             }else
             //                 fprintf(out,"sw %s, %d(%s)\n",mips_reg[entry->reg],entry->offset,mips_reg[entry->base_reg]);
-            //         }
+            //         //}
+            //     }else if(entry->op->kind == REFERENCE){
+
             //     }
             // }
         }

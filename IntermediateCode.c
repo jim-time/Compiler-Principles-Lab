@@ -154,22 +154,24 @@ int translate_localvar(char* var_name){
             intercodes.push_back(&intercodes,dec_code);
 
             // generate intercodes to get address of array
-            // tn = &tn
+            // tn = &_tn
             InterCodeListNodePtr addr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             addr_code->code.kind = ASSIGN;
 
             addr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             addr_code->code.info.assign.right->kind = ADDRESS;
             addr_code->code.info.assign.right->info.var_name = x->info.var_name;
-
-            //var->alias->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
-            //sprintf(var->alias->info.var_name,"v%d",local_cnt);
             addr_code->code.info.assign.left = var->alias;
             intercodes.push_back(&intercodes,addr_code);
         }else if(var->type->kind == STRUCTURE){
             InterCodeListNodePtr dec_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             
-            OperandPtr x = var->alias;
+            //OperandPtr x = var->alias;
+            // codes : DEC _vx size
+            OperandPtr x = (OperandPtr)malloc(sizeof(Operand));
+            x->kind = var->alias->kind;
+            x->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
+            sprintf(x->info.var_name,"_%s",var->alias->info.var_name);
 
             dec_code->code.kind = DEC;
             dec_code->code.info.dec.x = x;
@@ -178,13 +180,14 @@ int translate_localvar(char* var_name){
             intercodes.push_back(&intercodes,dec_code);
 
             // generate intercodes to get address of structure
-            // tn = &tn
+            // tn = &_tn
             InterCodeListNodePtr addr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
             addr_code->code.kind = ASSIGN;
-            addr_code->code.info.assign.left = x;
+            
             addr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
             addr_code->code.info.assign.right->kind = ADDRESS;
-            addr_code->code.info.assign.right->info.var_name = var->alias->info.var_name;
+            addr_code->code.info.assign.right->info.var_name = x->info.var_name;
+            addr_code->code.info.assign.left = var->alias;
             intercodes.push_back(&intercodes,addr_code);
         }  
     }

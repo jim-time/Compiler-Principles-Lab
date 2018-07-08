@@ -46,14 +46,15 @@ int CodeGenerator(FILE* out){
     CreateBasicBlock();
     getLiveVarInfo();
     print_basicblock();
-    //CodeGen_Start(out);
+    CodeGen_Start(out);
     return 1;
 }
 
 int CodeGen_Start(FILE* out){
-    int iterBlock,iterCode;
-    InterCodeListNodePtr pcode;
+    int iterBlock,iterCode,pout;
+    InterCodeListNodePtr pcode,pargs;
     BasicBlockNodePtr pblock;
+
     for(iterBlock = 0; iterBlock < nr_blocks; iterBlock++){
         pblock = BasicBlocks[iterBlock]->header;
         for(;pblock != NULL ;pblock = pblock->next){
@@ -87,7 +88,12 @@ int CodeGen_Start(FILE* out){
                         CodeGen_Dec(out,pcode,pblock->out[iterCode]);
                         break;
                     case ARG:
-                        CodeGen_Args(out,pcode,pblock->out[iterCode]);
+                        // peehole
+                        if(pcode->prev->code.kind != ARG){
+                            for(pargs = pcode,pout = iterCode; pargs->code.kind != CALL;pargs = pargs->succ,pout++);
+                            CodeGen_Args(out,pcode,pblock->out[pout]);
+                        }else
+                            CodeGen_Args(out,pcode,pblock->out[iterCode]);
                         break;
                     case CALL:
                         CodeGen_CallFunc(out,pcode,pblock->out[iterCode]);
@@ -425,6 +431,14 @@ int CodeGen_Cond(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
 
 
 int CodeGen_DefFunc(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
+    // clear all of the operand descriptor
+    OperandDTPtr pOperand,oldp;
+    for(pOperand = ops; pOperand != NULL;){
+        oldp = pOperand;
+        pOperand = (OperandDTPtr)(pOperand->hh.next);
+        HASH_DEL(ops,oldp);
+        free(oldp);
+    }
     // clear the arg_cnt
     if(code->succ->code.kind != PARAM)
         param_index = 0;
@@ -483,7 +497,7 @@ int CodeGen_Dec(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     op = (OperandPtr)malloc(sizeof(Operand));
     op->kind = VARIABLE;
     op->info.var_name = x->info.var_name + 1;
-
+    
     addOperand(op,&entry);
     esp_val -= code->code.info.dec.size;
     fprintf(out,"addi $sp, $sp, -%d\n",code->code.info.dec.size);
@@ -494,12 +508,17 @@ int CodeGen_Dec(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
 
 int arg_cnt = 0;
 int CodeGen_Args(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
-    int arg_reg = getReg(out,code->code.info.arg.x,RIGHT_VAL,liveVar);
+    if(!code){
+        backupReg(out,liveVar);
+        arg_cnt = 0;
+        return 1;
+    }
     if(code->prev->code.kind != ARG){
         // backup active variable among t0 - t9
         backupReg(out,liveVar);
         arg_cnt = 0;
     }
+    int arg_reg = getReg(out,code->code.info.arg.x,RIGHT_VAL,liveVar);
     if(arg_cnt < 4){
         fprintf(out,"move %s, %s\n",mips_reg[4+arg_cnt],mips_reg[arg_reg]);
     }else{
@@ -518,8 +537,10 @@ int CodeGen_CallFunc(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     // restore the return addr
     POP(out,"$ra");
     // restore the esp value
-    fprintf(out,"addi $sp,$sp,%d\n",(arg_cnt+1)*4);
-    esp_val -= (arg_cnt+1)*4;
+    if(arg_cnt > 4){
+        fprintf(out,"addi $sp, $sp, %d\n",(arg_cnt - 4)*4);
+        esp_val -= (arg_cnt - 4)*4;
+    }
     // restore the backup regsiter
     restoreReg(out,liveVar);
     // get the return value
@@ -541,7 +562,7 @@ int CodeGen_Ret(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     fprintf(out,"move $sp, $fp\n");
     POP(out,"$fp");
     fprintf(out,"move $v0, %s\njr $ra\n",mips_reg[ret_reg]);
-    freeVar(out,x,liveVar);
+    //freeVar(out,x,liveVar);
     return 1;
 }
 
@@ -550,6 +571,7 @@ int CodeGen_Read(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     code->code.kind = CALL;
     code->code.info.call_func.x = x;
     code->code.info.call_func.func_name = "read";
+    CodeGen_Args(out,NULL,liveVar);
     CodeGen_CallFunc(out,code,liveVar);
     return 1;
 }
