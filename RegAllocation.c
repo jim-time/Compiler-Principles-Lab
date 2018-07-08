@@ -22,6 +22,7 @@ struct LabelBlock_t{
     int order;
     BasicBlockNodePtr node;
 };
+
 LabelBlock *labels;
 int CreateBasicBlock(){
     //LabelBlock labels[label_cnt];
@@ -60,28 +61,42 @@ int CreateBasicBlock(){
                 label = pcode->code.info.label.label;
                 if(!labels[label].node){
                     labels[label].order = label;
-                    labels[label].node = new_node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
+                    new_node = labels[label].node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
                     memset(new_node,0,sizeof(BasicBlockNode));
-                    // node->next = new_node;
-                    //new_node->prev = node;
                 }else{
                     // before the label, its node has been register
                     new_node = labels[label].node;
                 }
+                
                 node->next = new_node;
                 new_node->prev = node;
 
-                node->branch = NULL;
+                // fill the succ
+                if(pcode->prev->code.kind != GOTO)
+                    node->succ = new_node;
+
                 new_node->code_begin = new_node->code_end = pcode;
                 node = new_node;
-                new_node = NULL;
+                //new_node = NULL;
                 blocks->trailer = node;
                 break;
             case COND:
                 label = pcode->code.info.cond.true_label;
 
-                new_node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
-                memset(new_node,0,sizeof(BasicBlockNode));
+                new_node = NULL;
+                if(pcode->succ->code.kind == LABEL){
+                    if(labels[pcode->succ->code.info.label.label].node)
+                        new_node = labels[pcode->succ->code.info.label.label].node;
+                    else{
+                        new_node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
+                        labels[pcode->succ->code.info.label.label].node = new_node;
+                        memset(new_node,0,sizeof(BasicBlockNode));
+                    }
+                }else{
+                    new_node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
+                    memset(new_node,0,sizeof(BasicBlockNode));
+                }
+
                 node->next = new_node;
                 new_node->prev = node;
                 // fill the old node
@@ -89,18 +104,15 @@ int CreateBasicBlock(){
                     node->code_begin = pcode;
                 node->code_end = pcode;
                 
-                if(pcode->succ->code.kind == LABEL){
-                    labels[pcode->succ->code.info.label.label].node = new_node;
-                    new_node->prev = node;
-                }
-
-
                 //fill the branch
                 if(!labels[label].node){
                     labels[label].order = label;
                     labels[label].node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
+                    memset(labels[label].node,0,sizeof(BasicBlockNode));
                 }
                 node->branch = labels[label].node;
+                // fill the succ
+                node->succ = new_node;
                 node->lines = ++lines;
                 
                 // fill the new node
@@ -109,7 +121,6 @@ int CreateBasicBlock(){
                     node = new_node;
                     lines = 0;
                 }
-                   
                 new_node = NULL;
                 blocks->trailer = node;
 
@@ -117,11 +128,20 @@ int CreateBasicBlock(){
             case GOTO:
                 label = pcode->code.info.goto_here.to;
 
-                new_node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
-                memset(new_node,0,sizeof(BasicBlockNode));
+                new_node = NULL;
                 if(pcode->succ->code.kind == LABEL){
-                    labels[pcode->succ->code.info.label.label].node = new_node;
+                    if(labels[pcode->succ->code.info.label.label].node)
+                        new_node = labels[pcode->succ->code.info.label.label].node;
+                    else{
+                        new_node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
+                        labels[pcode->succ->code.info.label.label].node = new_node;
+                        memset(new_node,0,sizeof(BasicBlockNode));
+                    }
+                }else{
+                    new_node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
+                    memset(new_node,0,sizeof(BasicBlockNode));
                 }
+                
                 // fill the old node
                 if(!node->code_begin)
                     node->code_begin = pcode;
@@ -131,9 +151,12 @@ int CreateBasicBlock(){
 
                 // branch
                 if(!labels[label].node){
+                    labels[label].order = label;
                     labels[label].node = (BasicBlockNodePtr)malloc(sizeof(BasicBlockNode));
+                    memset(labels[label].node,0,sizeof(BasicBlockNode));
                 }
                 node->branch = labels[label].node;
+                node->succ = NULL;
                 node->lines = ++lines;
 
                 // fill the new node
@@ -176,6 +199,8 @@ int print_basicblock(){
             // printf("current addr:\t%#x\n",pblock);
             // printf("next addr:\t%#x\n",pblock->next);
             // printf("prev addr:\t%#x\n",pblock->prev);
+            // printf("succ addr:\t%#x\n",pblock->succ);
+            // printf("branch addr:\t%#x\n",pblock->branch);
             for(pcode = pblock->code_begin,iterCode = 0; pcode->prev != pblock->code_end;pcode = pcode->succ){
                 print_singlecode(stdout, pcode);
                 if(pblock->out)
@@ -251,7 +276,8 @@ int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
                             Bitmap_Copy(out[iterCode],temp);
                             free(temp);
                             // some bugs
-                            in = Bitmap_unionWith(in,out[iterCode]);
+                            Bitmap_Copy(in,out[iterCode]);
+                            //in = Bitmap_unionWith(in,out[iterCode]);
                             break;
                         case GOTO:
                             label = pcode->code.info.goto_here.to;
@@ -261,8 +287,8 @@ int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
                             }
                             Bitmap_Copy(out[iterCode],labels[label].node->in);
                             // some bugs 
-                            //Bitmap_Copy(in,out[iterCode]);
-                            in = Bitmap_unionWith(in,out[iterCode]);
+                            Bitmap_Copy(in,out[iterCode]);
+                            //in = Bitmap_unionWith(in,out[iterCode]);
                             break;
                         case RET:
                             Bitmap_MakeEmpty(in);
@@ -280,11 +306,11 @@ int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
                     // compute the set of in
                     if(kind){
                         //maybe a bug
-                        if(iterCode + 1 < pblock->lines){
-                            tempdef = def;
-                            def = Bitmap_differenceFrom(def,out[iterCode+1]);
-                            free(tempdef);
-                        }
+                        // if(iterCode + 1 < pblock->lines){
+                        //     tempdef = def;
+                        //     def = Bitmap_differenceFrom(def,out[iterCode+1]);
+                        //     free(tempdef);
+                        // }
                         
                         free(in);
                         temp = Bitmap_differenceFrom(out[iterCode],def);
@@ -509,14 +535,14 @@ int RegAllocate(FILE* out,OperandDTPtr x,BitmapPtr liveVar){
                         if(pOperand->in_reg == 1 && pOperand->reg == iterReg){
                             // if the var is tn
                             if(pOperand->name[0] == 't'){
-                                // if(pOperand->offset == 0){
-                                //     PUSH(out,mips_reg[iterReg]);
-                                //     esp_val -=4;
-                                //     pOperand->offset = esp_val;
-                                // }else{
-                                //     fprintf(out,"sw %s, %d(%s)\n",mips_reg[iterReg],pOperand->offset,mips_reg[pOperand->base_reg]);
-                                // }
-                                // pOperand->swap = 1;
+                                if(pOperand->offset == 0){
+                                    PUSH(out,mips_reg[iterReg]);
+                                    esp_val -=4;
+                                    pOperand->offset = esp_val;
+                                }else{
+                                    fprintf(out,"sw %s, %d(%s)\n",mips_reg[iterReg],pOperand->offset,mips_reg[pOperand->base_reg]);
+                                }
+                               
                             // if the var is vn
                             }else{
                                 if(pOperand->offset == 0){
@@ -597,6 +623,10 @@ int getReg(FILE* out, OperandPtr var,int side,BitmapPtr liveVar){
                         reg_cnt = RegAllocate(out,entry,liveVar);
                         if(entry->offset != 0)
                             fprintf(out,"lw %s, %d(%s)\n",mips_reg[reg_cnt],entry->offset,mips_reg[entry->base_reg]);
+                        else{
+                            // PUSH(out,mips_reg[iterReg]);
+                            // esp_val -=4;
+                        }
                     }else{
                         // array or structure type
                         // get the address of header
@@ -668,23 +698,30 @@ int backupReg(FILE* out,BitmapPtr liveVar){
     int iterReg;
     for(iterReg = 8; iterReg < 26; iterReg++){
         // if(reg[iterReg].var){
-        //     op = reg[iterReg].var->op;
-        //     if(op){
-        //         freeVar(out,reg[iterReg].var->op,liveVar);
+        //     if(reg[iterReg].valid == 0){
+        //         op = reg[iterReg].var->op;
+        //         if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
+        //             PUSH(out,mips_reg[iterReg]);
+        //             esp_val -= 4;
+        //             backupCnt++;
+        //         }
         //     }
-        // }
-        // if(reg[iterReg].valid == 0){
-        //     PUSH(out,mips_reg[iterReg]);
-        //     esp_val -= 4;
-        //     backupCnt++;
         // }
         if(reg[iterReg].var){
             if(reg[iterReg].valid == 0){
                 op = reg[iterReg].var->op;
-                if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
-                    PUSH(out,mips_reg[iterReg]);
-                    esp_val -= 4;
-                    backupCnt++;
+                if(op->kind == VARIABLE){
+                    if(op->info.var_name[0] == 'v'){
+                        //if(reg[iterReg].var->isVar){
+                            PUSH(out,mips_reg[iterReg]);
+                            esp_val -= 4;
+                            backupCnt++;
+                        //}
+                    }else if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
+                        PUSH(out,mips_reg[iterReg]);
+                        esp_val -= 4;
+                        backupCnt++;
+                    }
                 }
             }
         }
@@ -697,19 +734,32 @@ int restoreReg(FILE* out, BitmapPtr liveVar){
     int iterParam;
     OperandPtr op;
     for(iterReg = 25; iterReg >= 8; iterReg--){
-        // if(reg[iterReg].valid == 0){
-        //     POP(out,mips_reg[iterReg]);
-        //     esp_val +=4;
+        // if(reg[iterReg].var){
+        //     if(reg[iterReg].valid == 0){
+        //         op = reg[iterReg].var->op;
+        //         if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
+        //             POP(out,mips_reg[iterReg]);
+        //             esp_val += 4;
+        //         }else{
+        //             freeVar(out,op,liveVar);
+        //         }
+        //     }
         // }
         if(reg[iterReg].var){
             if(reg[iterReg].valid == 0){
                 op = reg[iterReg].var->op;
-                if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
-                    POP(out,mips_reg[iterReg]);
-                    esp_val += 4;
-                }else{
-                    freeVar(out,op,liveVar);
+                if(op->kind == VARIABLE){
+                    if(op->info.var_name[0] == 'v'){
+                        //if(reg[iterReg].var->isVar){
+                            POP(out,mips_reg[iterReg]);
+                            esp_val += 4;
+                        //}
+                    }else if(Bitmap_getMember(liveVar,getOperandBitInfo(op))){
+                        POP(out,mips_reg[iterReg]);
+                        esp_val += 4;
+                    }
                 }
+                freeVar(out,op,liveVar);
             }
         }
     }
@@ -733,14 +783,15 @@ int freeVar(FILE* out,OperandPtr op,BitmapPtr liveVar){
     if(entry->in_reg){
         if(entry->reg){
             if(op->kind == VARIABLE){
-                //if(op->info.var_name[0] != 'v'){
+                // only release the temp variables
+                if(op->info.var_name[0] != 'v'){
                     if(!Bitmap_getMember(liveVar,getOperandBitInfo(op))){
                         reg[entry->reg].valid = 1;
                         reg[entry->reg].var = NULL;
                         entry->in_reg = 0;
                         entry->in_memory = 0;
                     }       
-                //}
+                }
             }else if(op->kind == REFERENCE){
                 if(op->info.var_name[0] == 't'){
                     base.kind = VARIABLE;

@@ -19,8 +19,11 @@ typedef OperandDT* OperandDTPtr;
 struct BasicBlockNode_t{
     InterCodeListNodePtr code_begin;
     InterCodeListNodePtr code_end;
+    // two-way linked-list
     BasicBlockNodePtr next;
     BasicBlockNodePtr prev;
+    // the flow of control
+    BasicBlockNodePtr succ;
     BasicBlockNodePtr branch;
     // live-variable analysize
     int lines;

@@ -22,6 +22,7 @@ syscall\n\
 move $v0, $0\n\
 jr $ra\n"
 
+int localvars[MAX_FUNC] = {0};
 
 char* mips_reg[NUM_MIPS_REG] = {"$r0","$at","$v0","$v1",
                                 "$a0","$a1","$a2","$a3",
@@ -45,7 +46,7 @@ int CodeGenerator(FILE* out){
     CodeGen_Init(out);
     CreateBasicBlock();
     getLiveVarInfo();
-    //print_basicblock();
+    print_basicblock();
     CodeGen_Start(out);
     return 1;
 }
@@ -90,7 +91,9 @@ int CodeGen_Start(FILE* out){
                     case ARG:
                         // peehole
                         if(pcode->prev->code.kind != ARG){
-                            for(pargs = pcode,pout = iterCode; pargs->code.kind != CALL;pargs = pargs->succ,pout++);
+                            arg_index = 0;
+                            for(pargs = pcode,pout = iterCode; pargs->code.kind != CALL;pargs = pargs->succ,pout++)
+                                arg_index++;
                             CodeGen_Args(out,pcode,pblock->out[pout]);
                         }else
                             CodeGen_Args(out,pcode,pblock->out[iterCode]);
@@ -429,8 +432,10 @@ int CodeGen_Cond(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
 }
 
 
-
+int funcCnt = -1;
 int CodeGen_DefFunc(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
+    // count the local vars
+    funcCnt++;
     // clear all of the operand descriptor
     OperandDTPtr pOperand,oldp;
     for(pOperand = ops; pOperand != NULL;){
@@ -440,7 +445,7 @@ int CodeGen_DefFunc(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
         free(oldp);
     }
     // clear the arg_cnt
-    if(code->succ->code.kind != PARAM)
+    //if(code->succ->code.kind != PARAM)
         param_index = 0;
     // reset the reg_cnt
     reg_cnt = -1;
@@ -507,6 +512,7 @@ int CodeGen_Dec(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
 }
 
 int arg_cnt = 0;
+int arg_index = 0;
 int CodeGen_Args(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     if(!code){
         backupReg(out,liveVar);
@@ -519,11 +525,19 @@ int CodeGen_Args(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
         arg_cnt = 0;
     }
     int arg_reg = getReg(out,code->code.info.arg.x,RIGHT_VAL,liveVar);
-    if(arg_cnt < 4){
-        fprintf(out,"move %s, %s\n",mips_reg[4+arg_cnt],mips_reg[arg_reg]);
-    }else{
+    // 4 < arg_index 
+    if(arg_index > 4){
         PUSH(out,mips_reg[arg_reg]);
+    }else{
+        // 1 <= arg_index <= 4
+        fprintf(out,"move %s, %s\n",mips_reg[3+arg_index],mips_reg[arg_reg]);
     }
+    arg_index--;
+    // if(arg_cnt < 4){
+    //     fprintf(out,"move %s, %s\n",mips_reg[4+arg_cnt],mips_reg[arg_reg]);
+    // }else{
+    //     PUSH(out,mips_reg[arg_reg]);
+    // }
     arg_cnt++;
     return 1;
 }
@@ -537,20 +551,37 @@ int CodeGen_CallFunc(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     // restore the return addr
     POP(out,"$ra");
     // restore the esp value
-    if(arg_cnt > 4){
-        fprintf(out,"addi $sp, $sp, %d\n",(arg_cnt - 4)*4);
-        esp_val -= (arg_cnt - 4)*4;
+    if(arg_cnt > 3){
+        fprintf(out,"addi $sp, $sp, %d\n",(arg_cnt - 3)*4);
+        esp_val -= (arg_cnt - 3)*4;
     }
     // restore the backup regsiter
     restoreReg(out,liveVar);
     // get the return value
     OperandPtr x = code->code.info.call_func.x;
     if(x){
-        addOperand(x,&entry);
-        entry->dirty = 1;
-        int ret_reg = getReg(out,x,LEFT_VAL,liveVar);
-        fprintf(out,"move %s, $v0\n",mips_reg[ret_reg]);
-        freeVar(out,x,liveVar);
+        if(x->kind == VARIABLE){
+            addOperand(x,&entry);
+            entry->dirty = 1;
+            int ret_reg = getReg(out,x,LEFT_VAL,liveVar);
+            fprintf(out,"move %s, $v0\n",mips_reg[ret_reg]);
+            freeVar(out,x,liveVar);
+        }else if(x->kind == REFERENCE){
+            // get base
+            int base;
+            x->kind = VARIABLE;
+            addOperand(x,&entry);
+            base = getReg(out,x,LEFT_VAL,liveVar);
+            // store *t
+            if(x->info.var_name[0] == 't'){
+                fprintf(out,"sw $v0, 0(%s)\n",mips_reg[base]);
+            }else{
+                // store *v
+                fprintf(out,"sw $v0, %d(%s)\n",entry->offset,mips_reg[entry->base_reg]);
+            }
+            // restore the intercodes info
+            x->kind = REFERENCE;
+        }
     }
     return 1;
 }
@@ -584,10 +615,27 @@ int CodeGen_Read(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     // get the return value
     OperandPtr x = code->code.info.read.x;
     if(x){
-        addOperand(x,&entry);
-        entry->dirty = 1;
-        int ret_reg = getReg(out,x,LEFT_VAL,liveVar);
-        fprintf(out,"move %s, $v0\n",mips_reg[ret_reg]);
+        if(x->kind == VARIABLE){
+            addOperand(x,&entry);
+            entry->dirty = 1;
+            int ret_reg = getReg(out,x,LEFT_VAL,liveVar);
+            fprintf(out,"move %s, $v0\n",mips_reg[ret_reg]);
+        }else{
+            // get base
+            int base;
+            x->kind = VARIABLE;
+            addOperand(x,&entry);
+            base = getReg(out,x,LEFT_VAL,liveVar);
+            // store *t
+            if(x->info.var_name[0] == 't'){
+                fprintf(out,"sw $v0, 0(%s)\n",mips_reg[base]);
+            }else{
+                // store *v
+                fprintf(out,"sw $v0, %d(%s)\n",entry->offset,mips_reg[entry->base_reg]);
+            }
+            // restore the intercodes info
+            x->kind = REFERENCE;
+        }
     }
     return 1;
 }

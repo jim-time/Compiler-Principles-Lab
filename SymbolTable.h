@@ -42,6 +42,8 @@ struct FuncTable_t{
     FieldListPtr param_list;
     int lineno;
     int define;
+    // num of local var
+    int local;
     UT_hash_handle hh;
 };
 

@@ -30,8 +30,12 @@ typedef LabelInfo* LabelInfoPtr;
 
 #define REG_NAME_LEN 16
 #define NUM_MIPS_REG 32
+#define MAX_FUNC 50
 extern char* mips_reg[NUM_MIPS_REG];
 extern int param_index;
+extern int localvars[MAX_FUNC];
+extern int funcCnt;
+extern int arg_index;
 
 #define LEFT_VAL 0x1
 #define RIGHT_VAL 0x2

@@ -52,7 +52,7 @@ int ST_ExtDefList(struct SyntaxTreeNode* ExtDefList){
 // ExtDef -> Specifier FunDec SEMI
 // ExtDef -> Specifier FunDec CompSt
 int ST_ExtDef(struct SyntaxTreeNode* ExtDef){
-    
+    static int func_cnt = 0;
     if(!strcmp(ExtDef->children[1]->node_name,"ExtDecList")){                   // ExtDef -> Specifier ExtDecList SEMI
         TypePtr type;
         if(ST_Specifier(ExtDef->children[0],&type)){                            // get the prefix of type
@@ -83,7 +83,7 @@ int ST_ExtDef(struct SyntaxTreeNode* ExtDef){
             }
             
         }else{                                                              // ExtDef -> Specifier FunDec CompSt
-        //define a function
+            //define a function
             TypePtr ret_type;
             FuncTablePtr func;
             if(ST_Specifier(ExtDef->children[0],&ret_type)){
@@ -97,6 +97,13 @@ int ST_ExtDef(struct SyntaxTreeNode* ExtDef){
                     ST_CompSt(ExtDef->children[2],func);
                 }
             }
+            // count the num of local variable
+            if(func_cnt == 0)
+                localvars[func_cnt++] = local_cnt - 1;
+            else{
+                localvars[func_cnt] = local_cnt - 1 - localvars[func_cnt-1];
+                func_cnt++;
+            } 
         }
     }
 
