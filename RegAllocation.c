@@ -151,7 +151,8 @@ int CreateBasicBlock(){
                 break;
         }
     }
-    node->next = NULL;
+    if(node)
+        node->next = NULL;
     return 1;
 }
 
@@ -278,13 +279,13 @@ int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
                     kind = getUseDef(pcode,def,use);
                     // compute the set of in
                     if(kind){
-                        // maybe a bug
+                        //maybe a bug
                         if(iterCode + 1 < pblock->lines){
                             tempdef = def;
                             def = Bitmap_differenceFrom(def,out[iterCode+1]);
                             free(tempdef);
                         }
-                        // 
+                        
                         free(in);
                         temp = Bitmap_differenceFrom(out[iterCode],def);
                         in = Bitmap_unionWith(use,temp);
