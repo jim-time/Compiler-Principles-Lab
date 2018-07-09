@@ -393,7 +393,7 @@ int ST_CompSt(struct SyntaxTreeNode* CompSt,FuncTablePtr func){
         }
         // enter the function  and clear the cnt for local variable
         //local_cnt = 1;
-        temp_cnt = 1;
+        //temp_cnt = 1;
         // generate intercodes on function declaration
         translate_func_dec(func);
     }

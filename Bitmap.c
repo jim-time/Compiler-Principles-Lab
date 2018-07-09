@@ -178,7 +178,7 @@ BitmapPtr Bitmap_differenceFrom(BitmapPtr A,BitmapPtr B){
 
 int Bitmap_printMember(BitmapPtr set,FILE* out){
     int size_cnt = 0;
-    char* out_buffer = (char*)malloc(sizeof(char)*set->setSize+1);
+    char* out_buffer = (char*)malloc(sizeof(char)*(set->setSize+1));
     uint32_t elem;
     for(;size_cnt < set->setSize; size_cnt++){
         sprintf(out_buffer+size_cnt,"%d",Bitmap_getMember(set,size_cnt));

@@ -46,7 +46,7 @@ int CodeGenerator(FILE* out){
     CodeGen_Init(out);
     CreateBasicBlock();
     getLiveVarInfo();
-    print_basicblock();
+    //print_basicblock();
     CodeGen_Start(out);
     return 1;
 }
@@ -205,7 +205,7 @@ int CodeGen_Assign(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
             addOperand(left,&left_entry);
             left_entry->dirty = 1;
             freeVar(out,left,liveVar);
-        }else if(left->kind == REFERENCE && right->kind == VARIABLE){
+        }else if(left->kind == REFERENCE){
             // *x = y
             // get y
             rs = getReg(out,right,RIGHT_VAL,liveVar);
