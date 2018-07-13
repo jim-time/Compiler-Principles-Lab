@@ -28,9 +28,9 @@ Please install the flex and bison before you try to run the compiler.
 ## Run the "C--" compiler
     ./build/bin/parser \<your-test-filename\>
     
-## Test Assembler file
+## Test Assembly file
     To begin with I suggest you to install the QtSpim (a MIPS simulator).
-    After you run the "C--" comiler, it will leave a assembly file named "code.s" in the curreny directory.
+    Next, run the "C--" comiler, it will leave a assembly file named "code.s" in the curreny directory.
     Open the QtSpim, and load the "code.s" file.
     Run and enjoy it!
 
