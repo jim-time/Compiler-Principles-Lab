@@ -8,8 +8,8 @@
 %{
     #define YYERROR_VERBOSE
     #include "stdio.h"
-    #include "SyntaxTree.h"
-    #include "SymbolTable.h"
+    #include "../include/SyntaxTree.h"
+    #include "../include/SymbolTable.h"
     extern int yylex (void);
     extern int yylineno;
     extern struct SyntaxTreeNode* root;

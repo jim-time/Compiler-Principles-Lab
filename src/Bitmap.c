@@ -66,7 +66,7 @@ int Bitmap_MakeEmpty(BitmapPtr bitmap){
 }
 
 int Bitmap_getMember(BitmapPtr bitmap,int x){
-    int nr_vector = x / 32, nr_id = x % 32;
+    int nr_vector = x / 32;
     uint32_t elem = bitmap->bitVector[nr_vector];
     return (elem>>(31-x))%2;
 }
@@ -157,12 +157,12 @@ BitmapPtr Bitmap_intersectWith(BitmapPtr A, BitmapPtr B){
 }
 
 BitmapPtr Bitmap_differenceFrom(BitmapPtr A,BitmapPtr B){
-    BitmapPtr setA,setB,setC;
+    BitmapPtr setB,setC;
     if(A->setSize >= B->setSize){
-        setA = A;
+        //setA = A;
         setB = B;
     }else{
-        setA = B;
+        //setA = B;
         setB = A;
     }
     setC = (BitmapPtr)malloc(sizeof(Bitmap));
@@ -179,7 +179,6 @@ BitmapPtr Bitmap_differenceFrom(BitmapPtr A,BitmapPtr B){
 int Bitmap_printMember(BitmapPtr set,FILE* out){
     int size_cnt = 0;
     char* out_buffer = (char*)malloc(sizeof(char)*(set->setSize+1));
-    uint32_t elem;
     for(;size_cnt < set->setSize; size_cnt++){
         sprintf(out_buffer+size_cnt,"%d",Bitmap_getMember(set,size_cnt));
     }

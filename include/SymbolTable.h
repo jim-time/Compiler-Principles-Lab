@@ -1,10 +1,10 @@
 #ifndef __SYMBOLTABLE_H_
 #define __SYMBOLTABLE_H_
-#include "uthash/include/uthash.h"
+#include "uthash.h"
 #include "stdio.h"
-#include "TypeCheck.h"
-#include "my_vector.h"
-#include "SyntaxTree.h"
+// #include "TypeCheck.h"
+// #include "my_vector.h"
+// #include "SyntaxTree.h"
 
 // external definition
 // typecheck.h

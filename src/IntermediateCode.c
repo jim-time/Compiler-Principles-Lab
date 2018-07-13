@@ -1,4 +1,4 @@
-#include "main.h"
+#include "../include/main.h"
 #define VAR_NAME_LEN 10
 int local_cnt = 1;
 int temp_cnt = 1;
@@ -202,7 +202,6 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
     // initialize operands
     OperandPtr result,op1,op2;
     OperandPtr sum;
-    OperandPtr left;
     sum = (OperandPtr)malloc(sizeof(Operand));
     
 
@@ -234,14 +233,6 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
                 sum->kind = op1->kind;
                 sum->info.var_name = op1->info.var_name;
             }
-            // sum->info.var_name =  (char*)malloc(sizeof(char)*TYPE_NAME_LEN);
-            // sprintf(sum->info.var_name,"t%d",temp_cnt++);
-
-            // sum_code->code.kind = MUL;
-            // sum_code->code.info.binop.result = ret;
-            // sum_code->code.info.binop.op1 = op1;
-            // sum_code->code.info.binop.op2 = op2;
-            // intercodes.push_back(&intercodes,sum_code);
             dim++;
         }else{  
             // generate code: 
@@ -389,24 +380,9 @@ int translate_arr(struct SyntaxTreeNode* ArrBase,FieldListPtr* arr,FieldListPtr*
         // generate following intercodes when the type of element is BASIC
         // tn = *tn
         if((*ref_arr_base)->type->kind == BASIC){
-            // arr_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-            // left = (OperandPtr)malloc(sizeof(Operand));
-            // arr_code->code.kind = ASSIGN;
-            
-            // left->kind = VARIABLE;
-            // left->info.var_name = (char*)malloc(sizeof(char)*10);
-            // sprintf(left->info.var_name,"t%d",++temp_cnt);
-
-            // arr_code->code.info.assign.left = left;
-            // arr_code->code.info.assign.right = (OperandPtr)malloc(sizeof(Operand));
-            // arr_code->code.info.assign.right->kind = REFERENCE;
-            // arr_code->code.info.assign.right->info.var_name = ret->info.var_name;
-            // intercodes.push_back(&intercodes,arr_code);
             sum = (OperandPtr)malloc(sizeof(Operand));
             sum->kind = REFERENCE;
             sum->info.var_name = sum_name;
-            // sum->info.var_name = (char*)malloc(sizeof(char)*VAR_NAME_LEN);
-            // sprintf(sum->info.var_name,"t%d",temp_cnt++);
         }
     }
     // return tn
@@ -443,52 +419,11 @@ int translate_structfield(FieldListPtr* struct_hdr,FieldListPtr* ref_field,int o
         field_code->code.info.binop.op1 = op1;
         field_code->code.info.binop.op2 = op2;
         intercodes.push_back(&intercodes,field_code);
-    }else{
-        // tn = hdr
-        // InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-        // result = (OperandPtr)malloc(sizeof(Operand));
-        // op1 = (OperandPtr)malloc(sizeof(Operand));
-
-        // result->kind = VARIABLE;
-        // result->info.var_name = (char*)malloc(sizeof(char)*10);
-        // sprintf(result->info.var_name,"t%d",temp_cnt++);
-
-        // op1->kind = VARIABLE;
-        // op1->info.var_name = (*struct_hdr)->alias;
-
-        // // optimization for assignment
-        // // tn's name != hdr's name
-        // if(strcmp(result->info.var_name,op1->info.var_name) || result->kind != op1->kind){
-        //     field_code->code.kind = ASSIGN;
-        //     field_code->code.info.assign.left = result;
-        //     field_code->code.info.assign.right = op1;
-        //     intercodes.push_back(&intercodes,field_code);
-        // }else{
-        //     free(field_code);
-        //     free(op1);
-        // }
     }
 
     // if the type of field is BASIC
     // tn = *tn
     if((*ref_field)->type->kind == BASIC){
-        // InterCodeListNodePtr field_code = (InterCodeListNodePtr)malloc(sizeof(InterCodeListNode));
-        // op1 = (OperandPtr)malloc(sizeof(Operand));
-        // op1->kind = REFERENCE;
-        // if(offset)
-        //     op1->info.var_name = result->info.var_name;
-        // else
-        //     op1->info.var_name = (*struct_hdr)->alias;
-
-        // result = (OperandPtr)malloc(sizeof(Operand));
-        // result->kind = VARIABLE;
-        // result->info.var_name = (char*)malloc(sizeof(char)*10);
-        // sprintf(result->info.var_name,"t%d",temp_cnt++);
-
-        // field_code->code.kind = ASSIGN;
-        // field_code->code.info.assign.left = result;
-        // field_code->code.info.assign.right = op1;
-        // intercodes.push_back(&intercodes,field_code);
         result = (OperandPtr)malloc(sizeof(Operand));
         result->kind = REFERENCE;
         if(offset)
@@ -1013,6 +948,7 @@ int print_intercodes(FILE* out){
                 break;
         }
     }
+    return 1;
 }
 
 int print_singlecode(FILE* out, InterCodeListNodePtr code){
@@ -1088,10 +1024,7 @@ int print_intercodes_binop(FILE* out,InterCodeListNodePtr code){
     result = code->code.info.binop.result;
     op1 = code->code.info.binop.op1;
     op2 = code->code.info.binop.op2;
-
-    char* out_buf = (char*)malloc(sizeof(char)*2*TYPE_NAME_LEN);
     char* op_name;
-    int plen = 0;
     switch(code->code.kind){
         case ADD:
             op_name = "+";
@@ -1255,7 +1188,6 @@ int optimization_cond(){
 int optimization_arithmetic(){
     InterCodeListNodePtr pcode = intercodes.header->succ;
     OperandPtr res,op1,op2;
-    OperandPtr temp;
     char operation;
     // optimization for two immediate number operation
     for(;pcode != intercodes.trailer; pcode = pcode->succ){

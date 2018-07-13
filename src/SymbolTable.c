@@ -1,9 +1,4 @@
-#include "SymbolTable.h"
-#include "TypeCheck.h"
-#include "SyntaxTree.h"
-#include "errtype.h"
-#include "my_vector.h"
-#include "SemanticAnalysis.h"
+#include "../include/main.h"
 
 //level
 uint16_t CompStLevel = 0;
@@ -53,7 +48,7 @@ int vartab_stack_push(){
 }
 
 int vartab_stack_pop(){
-    struct VarTable_t* bucket, *discard;
+    struct VarTable_t* bucket;
     VarTableStack.pop(&VarTableStack,&bucket);
     while(bucket){
         vartab_list_pop(&bucket);

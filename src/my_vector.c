@@ -1,4 +1,4 @@
-#include "my_vector.h"
+#include "../include/my_vector.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "string.h"
@@ -39,6 +39,7 @@ int vec_expand(vec_t *vec){
         free(elem_old);
     }else
         return 0;
+    return 1;
 }
 
 int vec_push_back(vec_t *vec, elem_type * e){

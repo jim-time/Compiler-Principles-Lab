@@ -19,5 +19,6 @@
 #include "IntermediateCode.h"
 #include "CodeGenerator.h"
 #include "RegAllocation.h"
+#include "Bitmap.h"
 
 #endif

@@ -1,7 +1,6 @@
 #ifndef __TYPECHECK_H_
 #define __TYPECHECK_H_
-//#include "main.h"
-#include "uthash/include/uthash.h"
+#include "uthash.h"
 
 // external definition
 // SymbolTabel.h

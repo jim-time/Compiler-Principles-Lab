@@ -52,30 +52,30 @@
 // }
 
 //Sample 4
-int add(int temp[2])
-{
-    return (temp[0] + temp[1]);
-}
+// int add(int temp[2])
+// {
+//     return (temp[0] + temp[1]);
+// }
 
-int main()
-{
-    int op[2];
-    int r[1][2];
-    int i = 0, j = 0;
-    while (i < 2)
-    {
-        while (j < 2)
-        {
-            op[j] = i + j;
-            j = j + 1;
-        }
-        r[0][i] = add(op);
-        write(r[0][i]);
-        i = i + 1;
-        j = 0;
-    }
-    return 0;
-}
+// int main()
+// {
+//     int op[2];
+//     int r[1][2];
+//     int i = 0, j = 0;
+//     while (i < 2)
+//     {
+//         while (j < 2)
+//         {
+//             op[j] = i + j;
+//             j = j + 1;
+//         }
+//         r[0][i] = add(op);
+//         write(r[0][i]);
+//         i = i + 1;
+//         j = 0;
+//     }
+//     return 0;
+// }
 
 // Sample 5
 // struct a{
@@ -121,4 +121,63 @@ int main()
 //         i = i + 1;
 //     }
 //     return 0;
+// }
+
+// Sample 7
+// #include "stdio.h"
+// int read(){
+//     int x;
+//     scanf("%d",&x);
+//     return x;
+// }
+// int write(int x){
+//     printf("%d ",x);
+//     return 1;
+// }
+
+// int partition(int arr[10],int p, int q){
+//     int pivot = arr[q-1];
+//     int temp;
+//     int i = p,j = p;
+//     while(j < q-1){
+//         if(arr[j] < pivot){
+//             temp = arr[j];
+//             arr[j] = arr[i];
+//             arr[i] = temp;
+//             i = i + 1;
+//         }
+//         j = j + 1;
+//     }
+//     temp = arr[q-1];
+//     arr[q-1] = arr[i];
+//     arr[i] = temp;
+//     return i;
+// }
+
+// int quickSort(int arr[10],int p, int q){
+//     int pivot;
+//     if(p < q){
+//         pivot = partition(arr,p,q);
+//         quickSort(arr,p,pivot);
+//         quickSort(arr,pivot+1,q);
+//     }
+//     return 1;
+// }
+
+// int main(){
+//     int arr[10];
+//     int i = 0,n = 0;
+//     n = read();
+//     while(i<n){
+//         arr[i] = read();
+//         i = i + 1;
+//     }
+//     // quick sort 
+//     quickSort(arr,0,n);
+//     i = 0;
+//     while(i<n){
+//         write(arr[i]);
+//         i = i + 1;
+//     }
+//     return 1;
 // }

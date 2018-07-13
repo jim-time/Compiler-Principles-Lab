@@ -1,9 +1,11 @@
 #ifndef __CODEGENERATOR_H_
 #define __CODEGENERATOR_H_
-#include "main.h"
-#include "Bitmap.h"
+#include "../include/main.h"
 
 // external defintion
+// Bitmap.h
+typedef struct Bitmap_t Bitmap;
+typedef struct Bitmap_t* BitmapPtr;
 // IntermediateCode.h
 typedef struct Operand_t Operand;
 typedef struct InterCode_t InterCode;

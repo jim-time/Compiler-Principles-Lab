@@ -14,7 +14,6 @@ extern FILE *yyin;
 extern int yylex (void);
 extern void yyrestart(FILE * input_file );
 extern int yyparse (void);
-extern int yydebug;
 
 FILE *pscanner;
 FILE* pic = NULL;
@@ -30,23 +29,14 @@ int main(int argc, char** argv) {
                 perror(argv[1]);
                 return 1;
             }
-        }else if (argc == 3){ /*Debug Mode*/
-            if(!strcmp(argv[1],"-d")){
-                if(!(pfile = fopen(argv[2],"r+"))){
-                    perror(argv[2]);
-                    return 1;
-                }
-                yydebug = 1;
-            }
         }
-        yydebug = 0;
     }
     //pscanner = fopen("./Output/scanner.output","w+");
     yyrestart(pfile);
     yyparse();
     if(error_hint == 0){
-        pic = fopen("./Output/out.ir","w+");
-        pcg = fopen("./Output/code.s","w+");
+        pic = fopen("./out.ir","w+");
+        pcg = fopen("./code.s","w+");
         if(!pic){
             printf("Failed to open out.ir\n");
             return 0;

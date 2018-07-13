@@ -13,7 +13,7 @@
     #include"stdlib.h"
     #include"string.h"
     #include"c--.tab.h" 
-    #include"SyntaxTree.h"
+    #include"../include/SyntaxTree.h"
     #define SCANNER_OUTPUT 0
 
     int int_num;

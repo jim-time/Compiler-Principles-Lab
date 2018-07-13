@@ -5,7 +5,8 @@
  *  @date   2018-5-6
  *  @version v1.0
 **/
-#include "SyntaxTree.h"
+#include "../include/SyntaxTree.h"
+
 struct SyntaxTreeNode* CreateNode(struct SyntaxTreeNode* parent,char* name,union Node_Data data,int line){
     struct SyntaxTreeNode* child = (struct SyntaxTreeNode*)malloc(sizeof(struct SyntaxTreeNode));
     if(child == NULL){

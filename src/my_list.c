@@ -1,4 +1,4 @@
-#include "my_list.h"
+#include "../include/my_list.h"
 
 int List_Create(ListPtr list){
     list->size = 0;

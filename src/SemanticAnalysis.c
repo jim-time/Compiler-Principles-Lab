@@ -1,10 +1,10 @@
-#include "main.h"
+#include "../include/main.h"
 #define PRINT_TBALE 0
 
 //struct hierarchy
 uint16_t hierarchy = 0;
 
-/*Syntax tree analize
+/*Syntax tree analyze
  *
  * 
  *
@@ -259,6 +259,7 @@ int ST_StructSpecifier(struct SyntaxTreeNode* StructSpecifier,TypePtr* ret){
         clear_local_var();
         return 1;
     }
+    return 1;
 }
 
 int ST_OptTag(struct SyntaxTreeNode* OptTag,const char** ret_id){
@@ -326,7 +327,6 @@ int ST_VarDec(struct SyntaxTreeNode* VarDec,TypePtr field_type, FieldListPtr* re
 }
 
 int ST_FuncDec(struct SyntaxTreeNode* FuncDec,FuncTablePtr func){
-    int a;
     if(FuncDec->n_children == 4){                                           // FunDec -> ID LP VarList RP 
         func->name = FuncDec->children[0]->data.string_value;
         if(ST_VarList(FuncDec->children[2],func)){
@@ -1156,7 +1156,6 @@ int ST_1OP_Logic(struct SyntaxTreeNode* operation, struct SyntaxTreeNode* a, Fie
                 // generate intercodes for minus exp
                 // code = 0 - exp
                 struct FieldList zero;
-                int o = 0;
                 zero.alias = (OperandPtr)malloc(sizeof(Operand));
                 zero.alias->kind = CONSTANT_INT;
                 zero.alias->info.int_val = 0;

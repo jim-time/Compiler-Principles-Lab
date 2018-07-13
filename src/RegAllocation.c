@@ -1,8 +1,6 @@
-#include "main.h"
+#include "../include/main.h"
 #include "time.h"
 #include "sys/time.h"
-#include "Bitmap.h"
-
 
 #define OP_NAME_LEN 16
 struct OperandDT_t *ops = NULL;
@@ -212,7 +210,7 @@ int print_basicblock(){
 }
 
 int BasicBlock_LiveVariable(BasicBlockNodePtr block_trailer){
-    BitmapPtr def,use,in,temp,tempdef;
+    BitmapPtr def,use,in,temp;
     BitmapPtr *old_out,*out;
     int iterCode,label,kind;
     InterCodeListNodePtr pcode;
@@ -426,7 +424,6 @@ int getUseDef(InterCodeListNodePtr pcode,BitmapPtr def,BitmapPtr use){
 // +----+--------------+-------------+
 int getOperandBitInfo(OperandPtr op){
     int id;
-    char* idstr;
     switch(op->kind){
         case VARIABLE:
         case REFERENCE:
@@ -599,10 +596,9 @@ int RegAllocate(FILE* out,OperandDTPtr x,BitmapPtr liveVar){
 int getReg(FILE* out, OperandPtr var,int side,BitmapPtr liveVar){
     struct OperandDT_t* entry;
     struct OperandDT_t* base_entry;
-    char* op_name;
     int reg_cnt = 0;
 
-    int base,rd,rs;
+    int base,rs;
 
     // run the algorithm of register allocation
     switch(var->kind){

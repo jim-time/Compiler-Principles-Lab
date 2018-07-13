@@ -1,7 +1,6 @@
-#include "TypeCheck.h"
+#include "../include/main.h"
 #include "stdio.h"
 #include "stdlib.h"
-#include "errtype.h"
 
 
 struct TypeItem_t *types = NULL;

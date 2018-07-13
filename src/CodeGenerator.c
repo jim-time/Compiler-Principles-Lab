@@ -1,5 +1,4 @@
-#include "main.h"
-#include "Bitmap.h"
+#include "../include/main.h"
 
 #define __STR__(s)    #s
 #define MACRO2STR(s) __STR__(s)
@@ -246,7 +245,7 @@ int CodeGen_Assign(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
 }
 
 int CodeGen_BinOp(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
-    struct OperandDT_t *left_entry, *right_entry;
+    struct OperandDT_t *left_entry;
     int base;
     int rs = 0, rt = 0, rd = 0;
     OperandPtr res,op1,op2;
@@ -655,7 +654,6 @@ int CodeGen_Write(FILE* out, InterCodeListNodePtr code,BitmapPtr liveVar){
     // move the x to $a0
     int arg_reg = getReg(out,code->code.info.write.x,RIGHT_VAL,liveVar);
     fprintf(out,"move %s, %s\n",mips_reg[4],mips_reg[arg_reg]);
-    OperandDTPtr entry;
     // push the return addr
     PUSH(out,"$ra");
     // call function
