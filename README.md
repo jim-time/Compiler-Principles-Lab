@@ -26,7 +26,7 @@ Please install the flex and bison before you try to run the compiler.
     Run "make" to build 
 
 ## Run the "C--" compiler
-    ./build/bin/parser \<your-test-filename\>
+    ./build/bin/parser <your-test-filename>
     
 ## Test Assembly file
     To begin with I suggest you to install the QtSpim (a MIPS simulator).
