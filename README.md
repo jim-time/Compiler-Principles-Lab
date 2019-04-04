@@ -24,15 +24,16 @@ Attention! The "C--" grammer doesn't support pointer!
 ## Prerequisites
 - flex 2.6.0
 - bison 3.0.4
+- QtSpim 9.1.20
 ## Build 
-'''shell
+```shell
 $make 
-'''
+```
 
 ## Run 
-'''shell
+```shell
 ./build/bin/parser <your-test-filename>
-'''
+```
     
 ## Test Assembly file
     To begin with I suggest you to install the QtSpim (a MIPS simulator).
