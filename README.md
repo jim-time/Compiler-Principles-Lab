@@ -3,9 +3,7 @@ C-- Compiler
 
 > This project was built for Compiler-Principles course.
 
-C-- compiler is a compiler based on the "C--" language.
-It supports partial C89 language features .
-It will leave the MIPS instruction file in current directory after compiling your test file; 
+The C-- compiler is based on the "C--" language, supports partial C89 language features and allow user not only declare a structure but also define and call a recursive function.  
 
 ## C-- language features
 The "C--" language, which is cut from the C89 language, support the features as follow:
