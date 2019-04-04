@@ -20,8 +20,8 @@ The "C--" language, which is cut from the C89 language, support the features as 
 Attention! The "C--" grammer doesn't support pointer!
 
 ## Prerequisites
-- flex 2.6.0
-- bison 3.0.4
+- Flex 2.6.0
+- Bison 3.0.4
 - QtSpim 9.1.20
 ## Build 
 ```shell
