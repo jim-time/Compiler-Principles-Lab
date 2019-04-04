@@ -1,7 +1,7 @@
 C-- Compiler
-=========
+---
 
-> This is a project created for Compiler-Principles course.
+> This project was built for Compiler-Principles course.
 
 C-- compiler is a compiler based on the "C--" language.
 It supports partial C89 language features .
@@ -21,12 +21,18 @@ The "C--" language, which is cut from the C89 language, support the features as 
 
 Attention! The "C--" grammer doesn't support pointer!
 
-Please install the flex and bison before you try to run the compiler.
+## Prerequisites
+- flex 2.6.0
+- bison 3.0.4
 ## Build 
-    Run "make" to build 
+'''shell
+$make 
+'''
 
-## Run the "C--" compiler
-    ./build/bin/parser <your-test-filename>
+## Run 
+'''shell
+./build/bin/parser <your-test-filename>
+'''
     
 ## Test Assembly file
     To begin with I suggest you to install the QtSpim (a MIPS simulator).
