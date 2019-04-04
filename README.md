@@ -27,7 +27,9 @@ Attention! The "C--" grammer doesn't support pointer!
 - QtSpim 9.1.20
 ## Build 
 ```shell
-$make 
+ git clone https://github.com/jimleungjing/Compiler-Principles-Lab
+ cd Compiler-Principles-Lab
+ make
 ```
 
 ## Run 
@@ -36,9 +38,8 @@ $make
 ```
     
 ## Test Assembly file
-    To begin with I suggest you to install the QtSpim (a MIPS simulator).
-    Next, run the "C--" comiler, it will leave a assembly file named "code.s" in the curreny directory.
-    Open the QtSpim, and load the "code.s" file.
-    Run and enjoy it!
+- Run the "C--" comiler, and it will leave a assembly file named "code.s" in the curreny directory.
+- Open the QtSpim, and load the "code.s" file.
+- Just run and enjoy with my mini-complier!
 
-## Any advise would be appreciated :)
+BTW, any advise would be appreciated :)
